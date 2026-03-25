@@ -1,0 +1,1 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>GW Semantic Layer | NTT DATA</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",Arial,sans-serif;background:#F0F2F5}</style></head><body><div id="root"></div></body></html>
