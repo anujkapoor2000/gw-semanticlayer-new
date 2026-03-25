@@ -467,7 +467,7 @@ export default function App() {
                   <div style={{ fontSize:11, color:G600, marginBottom:10 }}>APD coverage groups extracted from on-premise product configuration ({ontology.apd.product}):</div>
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:8 }}>
                     {ontology.apd.coverageGroups.map(function(cg) {
-                      var st = STATUS_THEME[cg.gwCloud ? "MAPPED" : "GAP"];
+                      /*var st = STATUS_THEME[cg.gwCloud ? "MAPPED" : "GAP"];*/
                       return (
                         <div key={cg.id} style={{ background:WHITE, borderRadius:9, padding:"12px 14px", border:"1px solid "+G200, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
                           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
