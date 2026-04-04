@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 var BLUE   = "#003087";
-var LBLUE  = "#0067B1";
+/*var LBLUE  = "#0067B1";*/
 var RED    = "#E4002B";
 var GREEN  = "#00875A";
 var AMBER  = "#FF8B00";
