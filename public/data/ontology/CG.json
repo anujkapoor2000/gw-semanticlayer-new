@@ -1,0 +1,40 @@
+{
+  "summary": "Commercial Crime / Fidelity Guarantee insurance covering direct financial losses from employee theft, fraud, forgery, computer crime, and social engineering. Essential coverage for organisations handling cash, securities, and client funds.",
+  "migrationComplexity": "LOW",
+  "migrationScore": 32,
+  "entityCount": 20,
+  "ruleCount": 61,
+  "tableCount": 7,
+  "customExtensions": 8,
+  "apd": {
+    "product": "CommercialCrimeLine_CGLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "EMPTHEFT","name": "Employee Theft",               "type": "Limit",  "mandatory": true,  "entity": "EmpTheftCov_CG",   "gwCloud": "EmployeeTheftCoverage" },
+      { "id": "FORGERY", "name": "Forgery & Alteration",        "type": "Limit",  "mandatory": true,  "entity": "ForgeryCov_CG",    "gwCloud": "ForgeryCoverage" },
+      { "id": "COMPFRD", "name": "Computer Fraud",              "type": "Limit",  "mandatory": false, "entity": "CompFraudCov_CG",  "gwCloud": "ComputerFraudCoverage" },
+      { "id": "SOCENG",  "name": "Social Engineering / BEC",    "type": "Limit",  "mandatory": false, "entity": "SocEngCov_CG",     "gwCloud": "SocialEngineeringCoverage" },
+      { "id": "FUNDSTFR","name": "Funds Transfer Fraud",        "type": "Limit",  "mandatory": false, "entity": "FundsFraudCov_CG", "gwCloud": "FundsTransferFraudCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "InsuredOrg_CG",       "type": "APD Custom", "migrationRisk": "LOW",    "customFields": 7, "description": "Insured organisation. Custom: EmployeeCount, ClientFundsHeld, CashHandlingVolume, DualControlProcedures, BackgroundCheckPolicy, FidelityBondHistory, CustodyOfSecurities." },
+    { "entity": "CGValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "LOW",    "customFields": 0, "description": "61 rules: employee count-based limit adequacy, client funds custody requirements, dual control procedure validation, prior dishonesty exclusion checks, social engineering sublimit caps." }
+  ],
+  "relationships": [
+    { "from": "InsuredOrg_CG",     "to": "EmpTheftCov_CG",    "rel": "insuredUnder", "impact": "LOW",    "note": "Employee theft limit driven by employee count and cash handling volume" },
+    { "from": "CGValidationPlugin","to": "InsuredOrg_CG",     "rel": "validates",    "impact": "LOW",    "note": "Dual control and background check rules are rating modifiers" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 2, "area": "Social Engineering / BEC",     "detail": "Business Email Compromise sublimit and verification failure trigger. Relatively new coverage -- GW Cloud crime module may not have native BEC coverage type." },
+    { "severity": "MEDIUM", "count": 3, "area": "Client Funds Custody Rules",   "detail": "Solicitor and financial adviser client funds custody requirements. FCA client money rules require specific sublimit and segregation logic." },
+    { "severity": "LOW",    "count": 4, "area": "Prior Dishonesty Exclusion",   "detail": "Prior known employee dishonesty exclusion tracking. GW Cloud prior claims exclusion support available -- straightforward migration." },
+    { "severity": "LOW",    "count": 5, "area": "Coverage Sublimit Structure",  "detail": "Multiple coverage sublimits within overall crime limit. GW Cloud coverage terms support sublimits -- configuration migration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "InsuredOrg_CG.ClientFundsHeld",     "cloud": "InsuredOrg.ClientFundsIndicator",  "status": "PARTIAL", "action": "Amount field vs indicator -- mapping and validation rule adjustment required" },
+    { "onPrem": "SocEngCov_CG",                      "cloud": "SocialEngineeringCoverage",        "status": "PARTIAL", "action": "GW Cloud has coverage type -- BEC verification trigger logic needs migration" },
+    { "onPrem": "InsuredOrg_CG.DualControlProcedures","cloud":"InsuredOrg.DualControlFlag",       "status": "MAPPED",  "action": "Direct mapping -- TypeKey migration for procedure types" }
+  ]
+}

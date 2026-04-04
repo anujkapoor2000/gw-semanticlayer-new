@@ -1,0 +1,42 @@
+{
+  "summary": "Marine Hull insurance covering physical loss or damage to ocean-going vessels, including machinery breakdown and collision liability. Core London Market line written on Institute Time Clauses (Hulls) 1/11/95 or IHC 2003.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 76,
+  "entityCount": 33,
+  "ruleCount": 112,
+  "tableCount": 16,
+  "customExtensions": 20,
+  "apd": {
+    "product": "MarineHullLine_MHLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "INT"],
+    "coverageGroups": [
+      { "id": "HULL",    "name": "Hull & Machinery",            "type": "Limit",  "mandatory": true,  "entity": "HullCov_MH",        "gwCloud": "HullMachineryCoverage" },
+      { "id": "COLLLAB", "name": "Collision Liability (3/4ths)","type": "Limit",  "mandatory": true,  "entity": "CollisionCov_MH",   "gwCloud": "CollisionLiabilityCoverage" },
+      { "id": "DISBURSE","name": "Disbursements & Increased Value","type": "Limit","mandatory": false, "entity": "DisburCov_MH",     "gwCloud": "DisbursementsCoverage" },
+      { "id": "WAR",     "name": "War Risks (IWC)",             "type": "Limit",  "mandatory": false, "entity": "WarCov_MH",         "gwCloud": "WarRisksCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "Vessel_MH",            "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 14, "description": "Vessel entity. Custom: IMO_Number, VesselClass, GrossTonnage, NetTonnage, YearBuilt, Flag, ClassSociety, ClassSocietyStatus, TradingArea, VesselType, PropulsionType, FreeboardCertificate, ISM_Compliance, AIS_Fitted." },
+    { "entity": "MHValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "112 rules: class society status acceptability, trading area limit enforcement, ISM compliance mandatory check, age-related deductible application, war risk area exclusions (JWC Listed Areas)." },
+    { "entity": "ClassSociety_MH",      "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 5,  "description": "Classification society entity. Custom: SocietyCode, ClassNotation, SurveyCycle, LastSurveyDate, ClassSuspendedFlag." }
+  ],
+  "relationships": [
+    { "from": "Vessel_MH",           "to": "HullCov_MH",        "rel": "coveredBy",   "impact": "HIGH",   "note": "Hull valuation and deductibles driven by 14 vessel custom fields" },
+    { "from": "MHValidationPlugin",  "to": "Vessel_MH",         "rel": "validates",   "impact": "HIGH",   "note": "Class society status and ISM compliance are underwriting hard stops" },
+    { "from": "ClassSociety_MH",     "to": "Vessel_MH",         "rel": "classifies",  "impact": "MEDIUM", "note": "Class society certification required -- suspension triggers automatic decline" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "Vessel Entity",                "detail": "Vessel_MH has 14 custom fields with no standard GW Cloud marine entity. Complete new vessel entity design required for GW Cloud migration." },
+    { "severity": "CRITICAL", "count": 2, "area": "Class Society Status Integration","detail": "Real-time class society status lookup (Lloyd's Register, DNV, Bureau Veritas) required at bind. No GW Cloud native integration -- external API required." },
+    { "severity": "HIGH",     "count": 5, "area": "Trading Area Restrictions",    "detail": "JWC war risk listed areas and trading limit enforcement. Dynamic JWC area list requires external data feed -- no GW Cloud equivalent." },
+    { "severity": "HIGH",     "count": 3, "area": "Age-Related Deductibles",      "detail": "Vessel age deductible schedule uses non-standard rating table format. GW Cloud rating framework requires restructuring." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "Vessel_MH.IMO_Number",          "cloud": "N/A -- New Vessel Entity",          "status": "GAP",     "action": "Design marine vessel entity in GW Cloud -- core field for IMO registry integration" },
+    { "onPrem": "Vessel_MH.ClassSocietyStatus",  "cloud": "External Class Society API",        "status": "GAP",     "action": "Real-time class society status API integration required at quote/bind" },
+    { "onPrem": "Vessel_MH.TradingArea",         "cloud": "N/A",                               "status": "GAP",     "action": "JWC dynamic trading area list integration -- new external data feed" },
+    { "onPrem": "ClassSociety_MH",               "cloud": "N/A -- New Design Required",        "status": "GAP",     "action": "Classification society entity requires new GW Cloud design" }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "summary": "Workers Compensation policy covering employer liability for workplace injuries. Highly regulated with state-specific benefit schedules, class codes, and experience modification factors. Complex jurisdictional compliance requirements.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 63,
+  "entityCount": 36,
+  "ruleCount": 158,
+  "tableCount": 31,
+  "customExtensions": 19,
+  "apd": {
+    "product": "WorkersCompLine_WCLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "US-FL", "US-TX", "US-CA", "US-NY", "US-OH"],
+    "coverageGroups": [
+      { "id": "WCSTAT",  "name": "Workers Comp Statutory",     "type": "Statutory",  "mandatory": true,  "entity": "WCStatCov_WCLine",    "gwCloud": "WorkersCompStatutoryCoverage" },
+      { "id": "EL",      "name": "Employers Liability",        "type": "Limit",      "mandatory": true,  "entity": "ELCov_WCLine",        "gwCloud": "EmployersLiabilityCoverage" },
+      { "id": "WCUSLL",  "name": "USL&H / Admiralty",          "type": "Limit",      "mandatory": false, "entity": "USLHCov_WCLine",      "gwCloud": "USLHCoverage" },
+      { "id": "WCSTOP",  "name": "Stop Gap Liability",         "type": "Limit",      "mandatory": false, "entity": "StopGapCov_WCLine",   "gwCloud": "StopGapCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "WorkersCompLine",        "type": "Core GW",    "migrationRisk": "MEDIUM", "customFields": 6,  "description": "WC line entity. Custom: ExperienceModFactor, NCCICarrierCode, RiskID, SICCode, RetroBillingPlan, DividendPlanFlag." },
+    { "entity": "WCClassCode_WCLine",     "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 9,  "description": "NCCI/state class code entity. Custom: ClassCode, ClassDescription, HazardGroup, ManualRate, ExpModBase, StateSpecificRate, PayrollBasis, FullTimeEquivalents, SubcontractorFlag." },
+    { "entity": "WCLocation_WCLine",      "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 5,  "description": "Work location entity. Custom: StateCode, RatingGroup, ManagedCareFlag, SafetyProgramCredit, LossSensitiveFlag." },
+    { "entity": "WCValidationPlugin",     "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "158 rules: NCCI class code validity, experience mod calculation, multi-state coordination, retro premium plan eligibility, USL&H eligibility by SIC, stop-gap state list." },
+    { "entity": "WCExperienceModPlugin",  "type": "Rating",     "migrationRisk": "HIGH",   "customFields": 4,  "description": "Custom experience modification factor calculator. Integrates NCCI e-mod data feed. Non-standard for GW Cloud migration." }
+  ],
+  "relationships": [
+    { "from": "WorkersCompLine",       "to": "WCClassCode_WCLine",    "rel": "hasMultiple",  "impact": "HIGH",   "note": "Multiple class codes per policy -- NCCI class code validation critical" },
+    { "from": "WCClassCode_WCLine",    "to": "WCLocation_WCLine",     "rel": "assignedTo",   "impact": "MEDIUM", "note": "Class codes assigned per location -- multi-state coordination logic" },
+    { "from": "WCExperienceModPlugin", "to": "WorkersCompLine",       "rel": "modifies",     "impact": "HIGH",   "note": "E-mod integration via NCCI data feed -- requires rebuild for GW Cloud" },
+    { "from": "WCValidationPlugin",    "to": "WCClassCode_WCLine",    "rel": "validates",    "impact": "HIGH",   "note": "158 rules include class code eligibility and state-specific rate validation" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "NCCI E-Mod Integration",     "detail": "WCExperienceModPlugin integrates with NCCI data feed for experience modification factors. GW Cloud has no native NCCI integration -- requires new external API connector." },
+    { "severity": "CRITICAL", "count": 3, "area": "State Benefit Schedules",    "detail": "31 state-specific benefit schedule rate tables. GW Cloud WC module supports standard NCCI states but 6 monopolistic state funds (ND, OH, WA, WY) require custom handling." },
+    { "severity": "HIGH",     "count": 5, "area": "Class Code Entity",          "detail": "WCClassCode_WCLine has 9 custom fields. GW Cloud ClassCode entity supports partial equivalence -- HazardGroup, ManualRate, and StateSpecificRate require extension." },
+    { "severity": "HIGH",     "count": 6, "area": "Retro / Loss-Sensitive Plans","detail": "Custom retrospective rating and dividend plan logic in Gosu. GW Cloud does not natively support retro billing -- requires custom rating plugin or external system." },
+    { "severity": "MEDIUM",   "count": 8, "area": "Multi-State Coordination",   "detail": "Multi-jurisdiction class code assignment and premium allocation. GW Cloud WC supports multi-state but custom state priority and allocation rules need migration." },
+    { "severity": "LOW",      "count": 7, "area": "USL&H / Admiralty",          "detail": "USL&H endorsement eligibility based on SIC codes. GW Cloud supports USL&H coverage -- SIC-based eligibility rules need reconfiguration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "WorkersCompLine.ExperienceModFactor", "cloud": "WCLine.ExperienceMod",             "status": "PARTIAL", "action": "Field exists in GW Cloud but NCCI data feed integration requires rebuild" },
+    { "onPrem": "WCClassCode_WCLine.ManualRate",       "cloud": "ClassCode.ManualRate",             "status": "MAPPED",  "action": "Direct mapping -- GW Cloud native field" },
+    { "onPrem": "WCClassCode_WCLine.HazardGroup",      "cloud": "ClassCode.HazardGroupCode",        "status": "MAPPED",  "action": "TypeKey mapping required -- NCCI hazard group codes" },
+    { "onPrem": "WCExperienceModPlugin",               "cloud": "External NCCI API",                "status": "GAP",     "action": "Build new NCCI e-mod API integration for GW Cloud" },
+    { "onPrem": "WCValidationPlugin (retro rules)",    "cloud": "ValidationPlugin (Cloud)",         "status": "GAP",     "action": "Retro plan validation not supported in GW Cloud -- custom plugin required" }
+  ]
+}

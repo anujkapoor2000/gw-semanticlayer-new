@@ -1,0 +1,39 @@
+{
+  "summary": "Fine Art & Specie insurance covering high-value artworks, antiques, jewellery, and other specie items for private collectors, galleries, museums, and dealers. Specialist agreed value policies with transit, exhibition, and storage coverage.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 53,
+  "entityCount": 24,
+  "ruleCount": 71,
+  "tableCount": 9,
+  "customExtensions": 14,
+  "apd": {
+    "product": "FineArtLine_ArtLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "EU", "INT"],
+    "coverageGroups": [
+      { "id": "ARTPERM",  "name": "Fine Art (Permanent Location)",  "type": "AgreedValue","mandatory": true, "entity": "ArtPermCov",      "gwCloud": "FineArtPermanentCoverage" },
+      { "id": "ARTTRANS", "name": "Fine Art in Transit",            "type": "AgreedValue","mandatory": false,"entity": "ArtTransitCov",   "gwCloud": "FineArtTransitCoverage" },
+      { "id": "ARTEXHIB", "name": "Exhibition Cover",               "type": "AgreedValue","mandatory": false,"entity": "ArtExhibCov",     "gwCloud": "ExhibitionCoverage" },
+      { "id": "ARTREST",  "name": "Restoration Costs",              "type": "Limit",      "mandatory": false,"entity": "RestorationCov",  "gwCloud": "RestorationCostsCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "ArtItem_Art",          "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 11, "description": "Individual art item entity. Custom: ArtistName, Title, Medium, YearCreated, ProvenanceVerified, AgreedValue, LastValuationDate, ValuerName, AuthenticationCert, ConservationStatus, ExportLicenceRequired." },
+    { "entity": "ArtValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0,  "description": "71 rules: agreed value adequacy check vs market index, provenance verification requirement above £50k, export licence trigger for non-UK items, valuation currency limits, transit packing standard requirements." }
+  ],
+  "relationships": [
+    { "from": "ArtItem_Art",         "to": "ArtPermCov",        "rel": "coveredBy", "impact": "MEDIUM", "note": "Agreed value per item -- 11 custom item fields drive coverage terms" },
+    { "from": "ArtValidationPlugin", "to": "ArtItem_Art",       "rel": "validates", "impact": "MEDIUM", "note": "Provenance and valuation currency rules reference individual item fields" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "Art Item Schedule",              "detail": "ArtItem_Art has 11 custom fields. No GW Cloud standard art/specie item entity -- new entity design required for itemised art schedule." },
+    { "severity": "HIGH",   "count": 3, "area": "Market Valuation Index",         "detail": "Agreed value adequacy checked against art market indices (Mei Moses, Artprice). No GW Cloud native art market data integration." },
+    { "severity": "MEDIUM", "count": 4, "area": "Provenance Verification",        "detail": "Provenance verification requirement above threshold. Custom Gosu rule -- GW Cloud underwriting rules can support with configuration." },
+    { "severity": "LOW",    "count": 4, "area": "Transit and Exhibition Periods", "detail": "Temporary transit and exhibition period cover activation. GW Cloud endorsement model supports -- configuration work required." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "ArtItem_Art.ProvenanceVerified",    "cloud": "SpecieItem.ProvenanceStatus",    "status": "PARTIAL", "action": "Generic provenance field -- verification threshold rule requires migration" },
+    { "onPrem": "ArtItem_Art.AgreedValue",           "cloud": "SpecieItem.AgreedValue",        "status": "MAPPED",  "action": "Direct mapping -- GW Cloud specie agreed value native field" },
+    { "onPrem": "ArtValidationPlugin (market index)","cloud": "External Art Market API",       "status": "GAP",     "action": "Mei Moses / Artprice market index integration required" }
+  ]
+}

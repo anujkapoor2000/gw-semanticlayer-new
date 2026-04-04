@@ -1,0 +1,49 @@
+{
+  "summary": "Energy Onshore / Offshore insurance covering oil, gas, power generation, and renewable energy assets. Covers physical damage, control of well, and operator's extra expense. Complex engineering risk with PML-based capacity management and reinsurance treaty alignment.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 85,
+  "entityCount": 39,
+  "ruleCount": 148,
+  "tableCount": 19,
+  "customExtensions": 27,
+  "apd": {
+    "product": "EnergyLine_EnergyLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "NO", "INT"],
+    "coverageGroups": [
+      { "id": "ENERGYPROP","name": "Energy Property Damage",      "type": "Limit",  "mandatory": true,  "entity": "EnergyPropCov",      "gwCloud": "EnergyPropertyCoverage" },
+      { "id": "ENERGYBI",  "name": "Offshore Business Interruption","type":"Limit",  "mandatory": false, "entity": "EnergyBICov",        "gwCloud": "EnergyBICoverage" },
+      { "id": "COW",       "name": "Control of Well (Blowout)",   "type": "Limit",  "mandatory": false, "entity": "COWCov",              "gwCloud": "ControlOfWellCoverage" },
+      { "id": "OEE",       "name": "Operator's Extra Expense",    "type": "Limit",  "mandatory": false, "entity": "OEECov",              "gwCloud": "OEECoverage" },
+      { "id": "LIABENER",  "name": "Operator's Liability",        "type": "CSL",    "mandatory": false, "entity": "OpLiabCov",           "gwCloud": "OperatorsLiabilityCoverage" },
+      { "id": "RENEW",     "name": "Renewable Energy All Risks",  "type": "Limit",  "mandatory": false, "entity": "RenewCov",            "gwCloud": "RenewableEnergyCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "EnergyRisk_Energy",    "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 16, "description": "Energy risk entity. Custom: AssetType, TotalInsuredValue, COPE_Data, OffshoreLatLong, WaterDepth, ProductionCapacity_BOPD, ReserveType, WellCount, ManifoldType, ProcessingFacility, HSSERecord, EnvSensitivityZone, ISO14001_Cert, AgePlatform, HSE_ConsentRequired, PML_Estimate." },
+    { "entity": "EnergyValidationPlugin","type": "Gosu Rule", "migrationRisk": "HIGH",   "customFields": 0,  "description": "148 rules: PML adequacy vs TIV, UKCS block/licence validation, HSE offshore installation consent checks, well control contractor approval, ISO 14001 environmental discount, renewable energy technology acceptance, accumulation zone concentration limits." },
+    { "entity": "WellEntity_Energy",    "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 10, "description": "Individual well entity. Custom: WellRef, WellType, Depth_MD, H2S_Presence, HPHT_Flag, WellControlContractor, LastWellReport, ProductionRateRisk, ReservoirPressure, BlooutPreventerCert." },
+    { "entity": "CatModel_Energy",      "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 6,  "description": "Catastrophe model reference entity. Custom: ModelName, ModelVersion, PML_1in100, PML_1in250, EML_Estimate, ScenarioName." }
+  ],
+  "relationships": [
+    { "from": "EnergyRisk_Energy",    "to": "EnergyPropCov",     "rel": "insuredUnder","impact": "HIGH",   "note": "TIV and PML driven by 16 custom risk fields -- complex offshore engineering data" },
+    { "from": "WellEntity_Energy",    "to": "COWCov",            "rel": "coveredBy",   "impact": "HIGH",   "note": "Control of well limit driven by individual well depth, pressure, and H2S data" },
+    { "from": "CatModel_Energy",      "to": "EnergyRisk_Energy", "rel": "models",      "impact": "HIGH",   "note": "PML estimate from cat model drives capacity and reinsurance trigger -- no GW Cloud equivalent" },
+    { "from": "EnergyValidationPlugin","to":"EnergyRisk_Energy", "rel": "validates",   "impact": "HIGH",   "note": "148 rules include HSE consent and UKCS licence validation -- regulatory hard stops" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 6, "area": "Energy Risk Entity",            "detail": "EnergyRisk_Energy has 16 custom fields for complex offshore engineering data. No GW Cloud standard energy entity -- major new entity design required." },
+    { "severity": "CRITICAL", "count": 4, "area": "PML / Cat Model Integration",   "detail": "CatModel_Energy tracks PML estimates from RMS/AIR models. No GW Cloud native cat model integration -- external catastrophe model API connector required." },
+    { "severity": "CRITICAL", "count": 3, "area": "Well Entity Schedule",          "detail": "WellEntity_Energy has 10 custom fields for individual well data. No GW Cloud standard well entity -- new entity design required." },
+    { "severity": "HIGH",     "count": 5, "area": "HSE/UKCS Regulatory Integration","detail": "HSE offshore installation consent and UKCS licence validation. No GW Cloud native HSE integration -- new regulatory API connectors required." },
+    { "severity": "HIGH",     "count": 6, "area": "Renewable Energy Technologies", "detail": "Solar, wind, tidal, and hydrogen technology acceptance lists. New and rapidly evolving risk class -- technology acceptance list integration required." },
+    { "severity": "MEDIUM",   "count": 4, "area": "Accumulation Zone Tracking",   "detail": "UKCS block-level accumulation concentration monitoring. External GIS-based accumulation engine required -- no GW Cloud native offshore accumulation support." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "EnergyRisk_Energy.PML_Estimate",     "cloud": "External Cat Model API",              "status": "GAP",     "action": "RMS/AIR cat model integration for PML estimation -- major integration effort" },
+    { "onPrem": "WellEntity_Energy",                  "cloud": "N/A -- New Design Required",          "status": "GAP",     "action": "Well entity requires new GW Cloud design -- HPHT and H2S fields critical" },
+    { "onPrem": "EnergyRisk_Energy.HSE_ConsentRequired","cloud":"External HSE API",                   "status": "GAP",     "action": "HSE offshore installation consent API integration required" },
+    { "onPrem": "EnergyRisk_Energy.TotalInsuredValue", "cloud": "RiskLocation.TotalInsuredValue",    "status": "MAPPED",  "action": "Direct mapping -- field rename only" },
+    { "onPrem": "CatModel_Energy",                    "cloud": "N/A -- New Design Required",          "status": "GAP",     "action": "Cat model reference entity requires new GW Cloud design -- key for capacity management" }
+  ]
+}

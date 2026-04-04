@@ -1,0 +1,39 @@
+{
+  "summary": "Erection All Risks insurance covering mechanical and electrical plant, machinery, and steel structures during installation, erection, and testing. Common for energy, manufacturing, and infrastructure projects. DSU exposure closely linked.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 72,
+  "entityCount": 29,
+  "ruleCount": 104,
+  "tableCount": 14,
+  "customExtensions": 17,
+  "apd": {
+    "product": "ErectionAllRisksLine_EARLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE", "EU"],
+    "coverageGroups": [
+      { "id": "EARWORKS", "name": "Erection Works",              "type": "Limit",  "mandatory": true,  "entity": "ErectionCov_EAR",  "gwCloud": "ErectionWorksCoverage" },
+      { "id": "EARTPL",   "name": "Third Party Liability",       "type": "CSL",    "mandatory": true,  "entity": "TPLCov_EAR",       "gwCloud": "ErectionTPLCoverage" },
+      { "id": "EARDSU",   "name": "Delay in Start Up",           "type": "Limit",  "mandatory": false, "entity": "DSUCov_EAR",       "gwCloud": "ErectionDSUCoverage" },
+      { "id": "EARMAINT", "name": "Maintenance Period Extension","type": "Limit",  "mandatory": false, "entity": "MaintCov_EAR",     "gwCloud": "MaintenancePeriodCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "ErectionProject_EAR",  "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 11, "description": "Erection project entity. Custom: EquipmentType, ErectedValue, ManufacturerGuarantee, InstallationMethod, TestingPeriodDays, ColdCommissioningDate, HotCommissioningDate, PerformanceGuaranteeTest, InterfaceRisk, ModuleCount, SpecialLiftRequired." },
+    { "entity": "EARValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "104 rules: equipment type acceptance lists, testing period duration limits, manufacturer guarantee adequacy checks, hot commissioning heat run triggers, DSU indemnity period vs project duration alignment." }
+  ],
+  "relationships": [
+    { "from": "ErectionProject_EAR", "to": "ErectionCov_EAR",  "rel": "insuredUnder", "impact": "HIGH",   "note": "Erection value and testing period drive coverage scope -- 11 project custom fields" },
+    { "from": "EARValidationPlugin", "to": "ErectionProject_EAR","rel": "validates",  "impact": "HIGH",   "note": "104 rules include commissioning phase triggers and equipment acceptance lists" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 3, "area": "Project Commissioning Phases","detail": "Cold and hot commissioning dates trigger coverage transitions (Works → Maintenance). GW Cloud policy period model does not natively support multi-phase coverage transitions -- custom workflow required." },
+    { "severity": "HIGH",     "count": 4, "area": "Equipment Acceptance Lists",  "detail": "Equipment type acceptance and exclusion lists (e.g., nuclear, space) in Gosu. GW Cloud underwriting rules support list-based eligibility -- configuration migration required." },
+    { "severity": "HIGH",     "count": 5, "area": "DSU Indemnity Period",        "detail": "DSU indemnity period linked to commissioning date. GW Cloud DSU coverage exists but commissioning-date-dependent activation logic needs custom implementation." },
+    { "severity": "MEDIUM",   "count": 4, "area": "Maintenance Period Extension","detail": "Post-commissioning maintenance period. GW Cloud policy extension model supports -- configuration work required for automatic activation." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "ErectionProject_EAR.ColdCommissioningDate", "cloud": "Project.Phase1CompletionDate",  "status": "PARTIAL", "action": "Generic phase date -- cold vs hot commissioning distinction requires custom fields" },
+    { "onPrem": "ErectionProject_EAR.EquipmentType",         "cloud": "Project.EquipmentTypeCode",    "status": "MAPPED",  "action": "TypeKey migration required -- equipment type acceptance list migration" },
+    { "onPrem": "DSUCov_EAR",                                "cloud": "ErectionDSUCoverage",          "status": "PARTIAL", "action": "GW Cloud DSU exists -- commissioning-linked activation logic requires custom rule" }
+  ]
+}

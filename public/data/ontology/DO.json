@@ -1,0 +1,42 @@
+{
+  "summary": "Directors & Officers Liability insurance protecting corporate directors and officers against personal liability for wrongful acts in their management capacity. Key financial lines product with Side A/B/C structure and entity coverage.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 46,
+  "entityCount": 25,
+  "ruleCount": 78,
+  "tableCount": 8,
+  "customExtensions": 11,
+  "apd": {
+    "product": "DirectorsOfficersLine_DOLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE", "EU"],
+    "coverageGroups": [
+      { "id": "SIDEA",  "name": "Side A - Individual D&O",      "type": "Limit",  "mandatory": true,  "entity": "SideACov_DO",    "gwCloud": "SideACoverage" },
+      { "id": "SIDEB",  "name": "Side B - Corporate Reimbursement","type": "Limit","mandatory": true,  "entity": "SideBCov_DO",    "gwCloud": "SideBCoverage" },
+      { "id": "SIDEC",  "name": "Side C - Entity Securities",   "type": "Limit",  "mandatory": false, "entity": "SideCCov_DO",    "gwCloud": "SideCCoverage" },
+      { "id": "CRISI",  "name": "Crisis Management Costs",      "type": "Limit",  "mandatory": false, "entity": "CrisisCov_DO",   "gwCloud": "CrisisManagementCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "InsuredEntity_DO",     "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 10, "description": "Insured corporate entity. Custom: CompanyType, ListedFlag, ExchangeName, MarketCap, SubsidiaryCount, JurisdictionsOfOp, RevenueThreshold, LatestAccountsFiled, FCARegulated, EquityOfferings12m." },
+    { "entity": "DOValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0,  "description": "78 rules: listed company securities exclusion trigger (Side C), FCA regulated entity loading, cross-border subsidiary jurisdiction checks, financial distress exclusion triggers, prior known claims disclosure." },
+    { "entity": "InsuredPerson_DO",     "type": "APD Custom", "migrationRisk": "LOW",    "customFields": 5,  "description": "Director/officer entity. Custom: Title, AppointmentDate, PreviousInsurerDeclinedFlag, OutsideDirectorshipsCount, FeesAndBenefitsPA." }
+  ],
+  "relationships": [
+    { "from": "InsuredEntity_DO",   "to": "SideACov_DO",       "rel": "insuredUnder", "impact": "MEDIUM", "note": "Side A limit driven by entity type, listing status, and market cap" },
+    { "from": "DOValidationPlugin", "to": "InsuredEntity_DO",  "rel": "validates",    "impact": "MEDIUM", "note": "FCA regulation and securities offering rules reference 10 entity custom fields" },
+    { "from": "InsuredPerson_DO",   "to": "InsuredEntity_DO",  "rel": "officerOf",    "impact": "LOW",    "note": "Multi-director scheduling -- standard GW Cloud additional insured pattern" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "Listed Company Logic",         "detail": "Side C entity securities coverage eligibility and exclusion logic for listed companies. GW Cloud coverage eligibility rules can accommodate -- FCA listing data feed integration required." },
+    { "severity": "HIGH",   "count": 4, "area": "FCA Register Integration",     "detail": "FCA regulated entity flag requires FCA Financial Services Register lookup. No GW Cloud native FCA integration -- external API required." },
+    { "severity": "MEDIUM", "count": 5, "area": "Cross-Border Subsidiary Logic","detail": "Multi-jurisdiction subsidiary discovery and loading. Custom Gosu jurisdiction iteration -- GW Cloud underwriting rules can support with configuration work." },
+    { "severity": "LOW",    "count": 4, "area": "Prior Claims Disclosure",      "detail": "Prior known claims disclosure at renewal. GW Cloud renewal workflow supports prior claims capture -- minor configuration work." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "InsuredEntity_DO.FCARegulated",   "cloud": "External FCA Register API",    "status": "GAP",     "action": "FCA Financial Services Register integration required at quote" },
+    { "onPrem": "InsuredEntity_DO.ListedFlag",     "cloud": "InsuredOrg.PubliclyListed",    "status": "MAPPED",  "action": "Direct mapping -- GW Cloud native field" },
+    { "onPrem": "InsuredEntity_DO.MarketCap",      "cloud": "InsuredOrg.MarketCapitalization","status": "MAPPED", "action": "Direct mapping -- field rename only" },
+    { "onPrem": "SideCCov_DO",                     "cloud": "EntitySecuritiesCoverage",     "status": "PARTIAL", "action": "GW Cloud supports entity coverage -- Side C exclusion logic requires rule migration" }
+  ]
+}

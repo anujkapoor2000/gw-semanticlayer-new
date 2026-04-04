@@ -1,0 +1,38 @@
+{
+  "summary": "Aviation Liability insurance covering airline and general aviation operators for third-party bodily injury, property damage, and passenger liability. Compulsory under EC Regulation 785/2004 and Montreal Convention limits.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 57,
+  "entityCount": 24,
+  "ruleCount": 86,
+  "tableCount": 9,
+  "customExtensions": 11,
+  "apd": {
+    "product": "AviationLiabilityLine_AVLLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "EU", "INT"],
+    "coverageGroups": [
+      { "id": "AVTPL",  "name": "Third Party Liability",      "type": "CSL",    "mandatory": true,  "entity": "TPLCov_AVL",     "gwCloud": "AviationTPLCoverage" },
+      { "id": "PASSLIB","name": "Passenger Liability",        "type": "CSL",    "mandatory": true,  "entity": "PassCov_AVL",    "gwCloud": "PassengerLiabilityCoverage" },
+      { "id": "BAGMAIL","name": "Baggage, Mail & Cargo Liability","type": "Limit","mandatory": false,"entity": "BagMailCov_AVL","gwCloud": "BaggageCargoLiabilityCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "AviationOperator_AVL", "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 8, "description": "Aviation operator entity. Custom: AOC_Reference, OperatorCategory, SeatCapacity, AnnualFlightHours, RouteNetwork, IATA_Membership, EC785_MinLimit, MontrealConventionStatus." },
+    { "entity": "AVLValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "86 rules: EC Reg 785/2004 minimum limit compliance, Montreal Convention SDR calculation, AOC validity checks, seat capacity-based limit adequacy, route network war risk premium loading." }
+  ],
+  "relationships": [
+    { "from": "AviationOperator_AVL", "to": "PassCov_AVL",       "rel": "insuredUnder", "impact": "MEDIUM", "note": "Passenger limit adequacy checked against seat capacity and EC785 minimums" },
+    { "from": "AVLValidationPlugin",  "to": "AviationOperator_AVL","rel": "validates",  "impact": "MEDIUM", "note": "AOC and regulatory limit rules are mandatory compliance checks" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "EC785 Regulatory Compliance",   "detail": "EC Regulation 785/2004 minimum limit calculation based on MTOW and seat capacity. GW Cloud validation rules can accommodate but SDR-based limit calculation requires custom rule." },
+    { "severity": "HIGH",   "count": 2, "area": "Montreal Convention SDR Limits","detail": "Special Drawing Rights (SDR) conversion for Montreal Convention limits requires daily IMF exchange rate feed. No GW Cloud native SDR integration." },
+    { "severity": "MEDIUM", "count": 4, "area": "AOC Registry Validation",       "detail": "UK CAA AOC registry validation at bind. External CAA API integration required -- GW Cloud has no native aviation authority integration." },
+    { "severity": "LOW",    "count": 4, "area": "Route Network War Loading",     "detail": "War risk premium loading by route/destination. Custom rating table by ICAO region -- straightforward migration to GW Cloud rating tables." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "AviationOperator_AVL.EC785_MinLimit",       "cloud": "N/A",                            "status": "GAP",     "action": "Custom EC785 minimum limit calculation rule required -- SDR conversion feed needed" },
+    { "onPrem": "AviationOperator_AVL.AOC_Reference",        "cloud": "External CAA API",               "status": "GAP",     "action": "CAA AOC registry validation -- new external API integration" },
+    { "onPrem": "AviationOperator_AVL.MontrealConventionStatus","cloud":"Operator.RegulatoryCompliance", "status": "PARTIAL", "action": "Generic compliance field -- Montreal Convention-specific rules need migration" }
+  ]
+}

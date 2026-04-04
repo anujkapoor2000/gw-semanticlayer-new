@@ -1,0 +1,42 @@
+{
+  "summary": "Kidnap & Ransom (K&R) insurance covering ransom payments, crisis management consultancy costs, and associated expenses for kidnap, extortion, wrongful detention, and hijacking incidents. Confidential policy -- existence not disclosed to insured employees.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 77,
+  "entityCount": 22,
+  "ruleCount": 76,
+  "tableCount": 8,
+  "customExtensions": 17,
+  "apd": {
+    "product": "KidnapRansomLine_KRLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "INT"],
+    "coverageGroups": [
+      { "id": "RANSOM",   "name": "Ransom Payments",              "type": "Limit",  "mandatory": true,  "entity": "RansomCov_KR",     "gwCloud": "RansomPaymentCoverage" },
+      { "id": "CRISIS",   "name": "Crisis Consultancy Costs",     "type": "Limit",  "mandatory": true,  "entity": "CrisisCov_KR",     "gwCloud": "CrisisConsultancyCoverage" },
+      { "id": "DETENTION","name": "Wrongful Detention",           "type": "Limit",  "mandatory": false, "entity": "DetentionCov_KR",  "gwCloud": "WrongfulDetentionCoverage" },
+      { "id": "EXTORT",   "name": "Extortion (Non-Cyber)",        "type": "Limit",  "mandatory": false, "entity": "ExtortCov_KR",     "gwCloud": "ExtortionCoverage" },
+      { "id": "HIJACK",   "name": "Hijacking",                    "type": "Limit",  "mandatory": false, "entity": "HijackCov_KR",     "gwCloud": "HijackingCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "KRRisk_KR",           "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 12, "description": "K&R risk entity. Custom: InsuredIndustry, TravelRegions, HighRiskCountryList, EmployeeCount_Travelling, SecurityProtocols, CrisisResponseRetainer, PreviousIncidentFlag, ExecutiveExposureScore, MediaProfile, ConfidentialityAgreementFlag, CrisisConsultantRetained, PoliceReportingPolicy." },
+    { "entity": "KRValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "76 rules: high-risk country list (FCO Travel Advice Level 3+), crisis consultant panel validation, confidentiality requirement enforcement, ransom limit adequacy vs executive exposure, media profile loading triggers." },
+    { "entity": "CrisisConsultant_KR", "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 5,  "description": "Crisis consultant panel entity. Custom: ConsultantFirm, PanelApprovalDate, ResponseTimeGuarantee, SpecialistCapability, GeographicCoverage." }
+  ],
+  "relationships": [
+    { "from": "KRRisk_KR",          "to": "RansomCov_KR",        "rel": "insuredUnder", "impact": "HIGH",   "note": "Ransom limit driven by executive exposure and high-risk country travel -- 12 risk custom fields" },
+    { "from": "CrisisConsultant_KR","to": "KRRisk_KR",           "rel": "assignedTo",   "impact": "HIGH",   "note": "Crisis consultant panel assignment -- no GW Cloud equivalent for panel management" },
+    { "from": "KRValidationPlugin", "to": "KRRisk_KR",           "rel": "validates",    "impact": "HIGH",   "note": "FCO high-risk country validation requires live FCDO Travel Advice API integration" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 3, "area": "Confidentiality Requirements",   "detail": "K&R policies must remain confidential -- policy documents cannot be emailed to general inbox. GW Cloud document distribution requires custom confidentiality workflow." },
+    { "severity": "CRITICAL", "count": 2, "area": "Crisis Consultant Panel",         "detail": "CrisisConsultant_KR manages insurer crisis consultant panel (Control Risks, Pinkerton etc.). No GW Cloud equivalent -- new panel management entity required." },
+    { "severity": "HIGH",     "count": 4, "area": "FCDO High-Risk Country List",    "detail": "Dynamic FCDO Travel Advice Level 3+ country list required for acceptance/pricing. Live FCDO API integration required -- no GW Cloud native integration." },
+    { "severity": "HIGH",     "count": 5, "area": "Executive Exposure Scoring",     "detail": "Executive media profile and exposure scoring logic. Custom Gosu algorithm -- GW Cloud rating rules can accommodate with configuration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "KRRisk_KR.HighRiskCountryList",      "cloud": "External FCDO API",                 "status": "GAP",     "action": "FCDO Travel Advice Level 3+ dynamic country list integration required" },
+    { "onPrem": "CrisisConsultant_KR",                "cloud": "N/A -- New Design Required",        "status": "GAP",     "action": "Crisis consultant panel entity requires new GW Cloud design" },
+    { "onPrem": "KRRisk_KR.ConfidentialityAgreementFlag","cloud":"Policy.ConfidentialFlag",         "status": "PARTIAL", "action": "Confidentiality flag supported -- document distribution workflow requires custom implementation" }
+  ]
+}

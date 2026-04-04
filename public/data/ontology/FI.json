@@ -1,0 +1,40 @@
+{
+  "summary": "Financial Institutions insurance covering banks, asset managers, insurers, and other regulated financial entities for professional liability, crime, D&O, and E&O risks. Bespoke combined policy structures common in the London Market.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 67,
+  "entityCount": 32,
+  "ruleCount": 109,
+  "tableCount": 13,
+  "customExtensions": 19,
+  "apd": {
+    "product": "FinancialInstitutionsLine_FILine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "EU", "INT"],
+    "coverageGroups": [
+      { "id": "FIBB",   "name": "Bankers Blanket Bond",         "type": "Limit",  "mandatory": true,  "entity": "BBBCov_FI",      "gwCloud": "BankersBondCoverage" },
+      { "id": "FIEO",   "name": "E&O / Mis-selling",            "type": "CSL",    "mandatory": true,  "entity": "EOCov_FI",       "gwCloud": "EOCoverage" },
+      { "id": "FIDO",   "name": "D&O (Financial Institution)",  "type": "Limit",  "mandatory": false, "entity": "FIDOCov_FI",     "gwCloud": "FinancialInstitutionDOCoverage" },
+      { "id": "FICYBER","name": "Cyber (FI Specific)",          "type": "Limit",  "mandatory": false, "entity": "FICyberCov_FI",  "gwCloud": "FICyberCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "FinancialInstitution_FI","type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 12, "description": "FI entity. Custom: InstitutionType, FCA_FirmRef, PRA_Regulated, TotalAssets, AUM_GBP, CustomerCount, TradeFinanceFlag, DerivativesExposure, CapitalAdequacyRatio, SMFHolders, BaselClassification, ResolutionPlanRequired." },
+    { "entity": "FIValidationPlugin",    "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "109 rules: PRA regulated entity loadings, FCA FirmRef live validation, Basel classification-based exposure adjustments, SMCR/SMF holder count checks, systemic importance indicator triggers." }
+  ],
+  "relationships": [
+    { "from": "FinancialInstitution_FI", "to": "BBBCov_FI",             "rel": "insuredUnder", "impact": "HIGH",   "note": "BBB limit driven by total assets and Basel classification" },
+    { "from": "FIValidationPlugin",      "to": "FinancialInstitution_FI","rel": "validates",   "impact": "HIGH",   "note": "FCA/PRA regulatory validation rules are hard underwriting stops" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "FCA/PRA Registry Integration","detail": "FCA FirmRef and PRA regulation status require live FCA/PRA register API lookups. No GW Cloud native integration -- new regulatory API connectors required." },
+    { "severity": "HIGH",     "count": 5, "area": "Basel Classification Logic",  "detail": "Basel I/II/III/IV classification-based exposure and capital adequacy adjustments. Custom Gosu calculation -- GW Cloud rating rules can support with significant configuration." },
+    { "severity": "HIGH",     "count": 4, "area": "SMCR/SMF Holder Validation", "detail": "Senior Managers and Certification Regime holder count validation. FCA SMCR register integration required -- no GW Cloud native support." },
+    { "severity": "MEDIUM",   "count": 5, "area": "Combined FI Policy Structure","detail": "BBB + E&O + D&O + Cyber combined policy structure with shared aggregate limits. GW Cloud multi-line support requires custom aggregate limit coordinator." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "FinancialInstitution_FI.FCA_FirmRef",    "cloud": "External FCA Register API",      "status": "GAP",     "action": "FCA Financial Services Register API integration required" },
+    { "onPrem": "FinancialInstitution_FI.TotalAssets",    "cloud": "InsuredOrg.TotalAssets",         "status": "MAPPED",  "action": "Direct mapping -- field rename only" },
+    { "onPrem": "FinancialInstitution_FI.BaselClassification","cloud":"N/A",                         "status": "GAP",     "action": "Custom extension field required -- Basel classification TypeKey" },
+    { "onPrem": "FIValidationPlugin (SMCR rules)",        "cloud": "External FCA SMCR API",          "status": "GAP",     "action": "FCA SMCR register integration for SMF holder count validation" }
+  ]
+}

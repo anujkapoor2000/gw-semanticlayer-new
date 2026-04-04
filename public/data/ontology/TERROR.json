@@ -1,0 +1,40 @@
+{
+  "summary": "Terrorism and Political Violence insurance covering property damage and business interruption arising from acts of terrorism, sabotage, riots, and political violence. UK market closely aligned with Pool Re reinsurance scheme and government backstop.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 81,
+  "entityCount": 24,
+  "ruleCount": 88,
+  "tableCount": 10,
+  "customExtensions": 16,
+  "apd": {
+    "product": "TerrorismLine_TerrorLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "TERRPROP",  "name": "Terrorism Property Damage",    "type": "Limit",  "mandatory": true,  "entity": "TerrorPropCov",    "gwCloud": "TerrorismPropertyCoverage" },
+      { "id": "TERRBI",    "name": "Terrorism Business Interruption","type": "Limit", "mandatory": false, "entity": "TerrorBICov",      "gwCloud": "TerrorismBICoverage" },
+      { "id": "POLVI",     "name": "Political Violence",           "type": "Limit",  "mandatory": false, "entity": "PolViolCov",       "gwCloud": "PoliticalViolenceCoverage" },
+      { "id": "CBRN",      "name": "CBRN Extension",               "type": "Limit",  "mandatory": false, "entity": "CBRNCov",          "gwCloud": "CBRNCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "TerrorRisk_Terror",     "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 10, "description": "Terrorism risk entity. Custom: PoolReEligible, CrisisZoneCode, TargetAttractiveness, ConcentrationZone, AggregateAccumulationRef, CBRNExclusion, StandAloneFlag, GovernmentSchemeRef, MaxProbableLoss, CumulativeExposureBand." },
+    { "entity": "TerrorValidationPlugin","type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "88 rules: Pool Re eligibility (UK commercial property), CBRN exclusion triggers, concentration zone accumulation checks, crisis zone referral rules, government scheme alignment." },
+    { "entity": "PoolReEntity_Terror",   "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 7,  "description": "Pool Re reinsurance scheme entity. Custom: PoolReCategory, CedingPercentage, RetentionAmount, PoolRePremiumCalc, SchemeYear, EligibilityConfirmed, ReportingRef." }
+  ],
+  "relationships": [
+    { "from": "TerrorRisk_Terror",     "to": "PoolReEntity_Terror",     "rel": "cededTo",   "impact": "HIGH",   "note": "Pool Re cedancy calculation -- no GW Cloud equivalent for government scheme integration" },
+    { "from": "TerrorValidationPlugin","to": "TerrorRisk_Terror",       "rel": "validates", "impact": "HIGH",   "note": "Accumulation and crisis zone rules require postcode-level data" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "Pool Re Scheme Integration", "detail": "PoolReEntity_Terror manages UK government Pool Re reinsurance cedancy. No GW Cloud equivalent -- requires new reinsurance integration entity and Pool Re API connector." },
+    { "severity": "CRITICAL", "count": 2, "area": "Accumulation Zone Tracking", "detail": "Concentration zone accumulation monitoring requires postcode-level aggregate tracking. GW Cloud has no native accumulation engine -- external catastrophe model integration needed." },
+    { "severity": "HIGH",     "count": 3, "area": "CBRN Extension",             "detail": "Chemical, biological, radiological, nuclear extension has complex eligibility and exclusion rules. Specialist underwriting system integration may be required." },
+    { "severity": "HIGH",     "count": 5, "area": "Crisis Zone Classification", "detail": "Dynamic crisis zone codes updated by government advisories. GW Cloud requires external data feed integration for zone classification." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "PoolReEntity_Terror",             "cloud": "N/A -- New Design Required",      "status": "GAP",     "action": "Design Pool Re reinsurance entity in GW Cloud -- significant regulatory requirement" },
+    { "onPrem": "TerrorRisk_Terror.CrisisZoneCode","cloud": "RiskLocation.HazardZoneCode",     "status": "PARTIAL", "action": "Generic hazard zone field -- government advisory feed integration required" },
+    { "onPrem": "TerrorRisk_Terror.PoolReEligible","cloud": "N/A",                             "status": "GAP",     "action": "Pool Re eligibility logic requires new extension and UK-specific configuration" }
+  ]
+}

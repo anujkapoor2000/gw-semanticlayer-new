@@ -1,0 +1,50 @@
+{
+  "summary": "Commercial Package Policy bundling multiple commercial coverages (BOP, GL, Commercial Property, Crime) into a single policy. Complex multi-line product with shared rating entities and cross-coverage validation rules.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 71,
+  "entityCount": 38,
+  "ruleCount": 142,
+  "tableCount": 24,
+  "customExtensions": 21,
+  "apd": {
+    "product": "CommercialPackageLine_CPPLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE", "US-NY", "US-CA", "US-TX"],
+    "coverageGroups": [
+      { "id": "BOP",   "name": "Businessowners Property",    "type": "Limit",      "mandatory": true,  "entity": "BOPPropCov_CPP",   "gwCloud": "BusinessownersPropertyCoverage" },
+      { "id": "BOPGL", "name": "Businessowners GL",          "type": "CSL",        "mandatory": true,  "entity": "BOPGLCov_CPP",     "gwCloud": "BusinessownersGLCoverage" },
+      { "id": "CPROP", "name": "Commercial Property",        "type": "Limit",      "mandatory": false, "entity": "CommPropCov_CPP",  "gwCloud": "CommercialPropertyCoverage" },
+      { "id": "CGL",   "name": "Commercial General Liability","type": "CSL",       "mandatory": false, "entity": "CGLCov_CPP",       "gwCloud": "CommercialGLCoverage" },
+      { "id": "CRIME", "name": "Commercial Crime",           "type": "Limit",      "mandatory": false, "entity": "CrimeCov_CPP",     "gwCloud": "CommercialCrimeCoverage" },
+      { "id": "IMBP",  "name": "Inland Marine / BPP Floater","type": "Limit",      "mandatory": false, "entity": "InlandMarineCov_CPP","gwCloud": "InlandMarineCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "CommercialPackageLine", "type": "Core GW",    "migrationRisk": "MEDIUM", "customFields": 7,  "description": "Package line coordinator entity. Custom fields: PackageDiscount, MinimumPremiumOverride, BrokerFeeFlag, BundleScore, SICCode, NAICSCode, TIV_Total." },
+    { "entity": "CPPLocation_CPP",       "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 12, "description": "Multi-use commercial location. 12 custom fields: ConstructionClass, OccupancyType, ProtectionClass, SprinklerGrade, BurglarAlarmGrade, TIV_Location, FloodZone, WindPoolEligible, ValuationBasis, CoinsurancePercent, AgreedValueFlag, ReplacementCostInd." },
+    { "entity": "CPPValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "142 cross-line validation rules. Key: BOP eligibility size limits, GL aggregate alignment with property TIV, crime limit to revenue ratio checks, package discount eligibility." },
+    { "entity": "CPPRatingCoordinator",  "type": "Rating",     "migrationRisk": "HIGH",   "customFields": 5,  "description": "Coordinates multi-line rating order and package discount application. Non-standard rating sequence not directly supported in GW Cloud." },
+    { "entity": "CrimeCov_CPP",          "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 6,  "description": "Crime coverage entity. Custom: EmployeeTheftLimit, ForgeryLimit, ComputerFraudLimit, FundsTransferLimit, MoneySecuritiesLimit, ERISABondFlag." }
+  ],
+  "relationships": [
+    { "from": "CommercialPackageLine", "to": "CPPLocation_CPP",      "rel": "hasOneOrMore", "impact": "HIGH",   "note": "Package rating driven by location TIV and class -- 12 custom location fields involved" },
+    { "from": "CPPRatingCoordinator",  "to": "CommercialPackageLine", "rel": "rates",        "impact": "HIGH",   "note": "Multi-line rating coordinator has no direct GW Cloud equivalent" },
+    { "from": "CPPValidationPlugin",   "to": "CPPLocation_CPP",      "rel": "validates",    "impact": "HIGH",   "note": "142 cross-line rules reference both property and GL custom fields" },
+    { "from": "CrimeCov_CPP",          "to": "CommercialPackageLine", "rel": "partOf",       "impact": "MEDIUM", "note": "Crime sub-line linkage requires package coordination logic" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 3, "area": "Multi-Line Rating Coordinator", "detail": "CPPRatingCoordinator orchestrates cross-line rating order and package discounts. GW Cloud rates lines independently -- custom coordinator logic must be redesigned." },
+    { "severity": "CRITICAL", "count": 2, "area": "Location Entity",               "detail": "CPPLocation_CPP has 12 custom fields. GW Cloud Location supports partial equivalence. 5 fields (FloodZone, WindPoolEligible, ProtectionClass, BurglarAlarmGrade, CoinsurancePercent) need extension." },
+    { "severity": "HIGH",     "count": 6, "area": "Cross-Line Validation Rules",   "detail": "142 Gosu rules include 38 cross-line checks (GL aggregate vs TIV, BOP size limits, crime-to-revenue). GW Cloud validates lines in isolation -- phased rule migration required." },
+    { "severity": "HIGH",     "count": 4, "area": "Package Discount Logic",        "detail": "Multi-line package discount applied by CPPRatingCoordinator. GW Cloud discount framework supports single-line discounts only -- custom implementation needed." },
+    { "severity": "MEDIUM",   "count": 5, "area": "BOP Eligibility",              "detail": "BOP eligibility rules (building size, revenue, SIC code restrictions) coded in Gosu. GW Cloud BOP module supports configuration-driven eligibility -- mapping required." },
+    { "severity": "LOW",      "count": 9, "area": "Typekey Extensions",           "detail": "9 custom TypeKeys for OccupancyType and ConstructionClass. GW Cloud has partial equivalence -- 4 require new extension TypeKeys." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "CPPLocation_CPP.ProtectionClass",    "cloud": "Location.ProtectionClassCode",    "status": "MAPPED",  "action": "Direct mapping -- GW Cloud native field" },
+    { "onPrem": "CPPLocation_CPP.WindPoolEligible",   "cloud": "LocationEnrichment.WindPoolFlag", "status": "PARTIAL", "action": "GW Cloud enrichment API -- configuration required" },
+    { "onPrem": "CPPRatingCoordinator",               "cloud": "N/A -- Custom Required",          "status": "GAP",     "action": "Design multi-line rating coordinator in GW Cloud -- significant effort" },
+    { "onPrem": "CPPValidationPlugin (cross-line)",   "cloud": "ValidationPlugin (Cloud)",        "status": "PARTIAL", "action": "38 cross-line rules require redesign for GW Cloud isolated line architecture" },
+    { "onPrem": "CrimeCov_CPP.ERISABondFlag",         "cloud": "CrimeCoverage.ERISAIndicator",   "status": "MAPPED",  "action": "TypeKey mapping required -- field rename only" }
+  ]
+}

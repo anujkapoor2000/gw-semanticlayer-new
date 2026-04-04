@@ -1,0 +1,45 @@
+{
+  "summary": "Cyber & Data Breach insurance covering first-party costs (incident response, ransomware, data recovery) and third-party liability (regulatory fines, privacy claims) from cyber incidents. Fastest-growing UK specialty line with high accumulation exposure.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 38,
+  "entityCount": 30,
+  "ruleCount": 103,
+  "tableCount": 11,
+  "customExtensions": 23,
+  "apd": {
+    "product": "CyberLine_CyberLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "EU"],
+    "coverageGroups": [
+      { "id": "CYBER1P",  "name": "First Party Cyber Costs",      "type": "Limit",  "mandatory": true,  "entity": "FirstPartyCov_Cyber",  "gwCloud": "FirstPartyCyberCoverage" },
+      { "id": "RANSOMW",  "name": "Ransomware & Extortion",       "type": "Limit",  "mandatory": true,  "entity": "RansomCov_Cyber",      "gwCloud": "RansomwareCoverage" },
+      { "id": "DATAPRIV", "name": "Data Privacy Liability",       "type": "CSL",    "mandatory": true,  "entity": "PrivacyCov_Cyber",     "gwCloud": "DataPrivacyLiabilityCoverage" },
+      { "id": "REGFINE",  "name": "Regulatory Defence & Fines",   "type": "Limit",  "mandatory": false, "entity": "RegFineCov_Cyber",     "gwCloud": "RegulatoryFineCoverage" },
+      { "id": "BUSSINT",  "name": "Cyber Business Interruption",  "type": "Limit",  "mandatory": false, "entity": "CyberBICov_Cyber",     "gwCloud": "CyberBICoverage" },
+      { "id": "SYSTFAIL", "name": "System Failure (Non-Malicious)","type": "Limit", "mandatory": false, "entity": "SysFail Cov_Cyber",   "gwCloud": "SystemFailureCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "CyberRisk_Cyber",       "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 15, "description": "Cyber risk profile entity. Custom: IndustryCode, RevenueUSD, RecordCount_PII, RecordCount_PHI, CloudDependencyScore, MFAImplemented, EDR_Deployed, BackupFrequency, PatchCycleDays, IncidentResponsePlan, CyberSecurityCertification, ThirdPartyVendorCount, CriticalSystems, DataEncryptionStandard, ICO_Registered." },
+    { "entity": "CyberValidationPlugin", "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "103 rules: MFA mandatory for limits >£1M, critical infrastructure sector loading, GDPR/UK GDPR data volume scoring, cloud concentration accumulation checks, ransomware susceptibility scoring, ICO registration validation." },
+    { "entity": "CyberAccumulation_Cyber","type": "APD Custom","migrationRisk": "HIGH",   "customFields": 8,  "description": "Accumulation monitoring entity. Custom: CloudProviderExposure, SoftwareVendorExposure, CumulativeRiskBand, CorrelationScore, PMLEstimate, AccumulationZone, ReinsuranceTriggerFlag, CatModRef." }
+  ],
+  "relationships": [
+    { "from": "CyberRisk_Cyber",        "to": "FirstPartyCov_Cyber",   "rel": "insuredUnder", "impact": "HIGH",   "note": "15 cyber risk profile fields drive pricing, deductibles, and sublimits" },
+    { "from": "CyberAccumulation_Cyber","to": "CyberRisk_Cyber",       "rel": "monitors",     "impact": "HIGH",   "note": "Accumulation entity tracks cloud/software concentration -- no GW Cloud equivalent" },
+    { "from": "CyberValidationPlugin",  "to": "CyberRisk_Cyber",       "rel": "validates",    "impact": "HIGH",   "note": "103 rules include mandatory MFA hard stop and ransomware scoring logic" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 5, "area": "Cyber Risk Profile Entity",   "detail": "CyberRisk_Cyber has 15 custom fields representing the cyber risk questionnaire. No GW Cloud standard cyber entity -- complete new entity design required." },
+    { "severity": "CRITICAL", "count": 4, "area": "Accumulation Monitoring",     "detail": "CyberAccumulation_Cyber tracks cloud provider and software vendor concentration. No GW Cloud accumulation engine -- external catastrophe model (RMS, Cyence) integration required." },
+    { "severity": "HIGH",     "count": 5, "area": "Dynamic Risk Scoring",        "detail": "Ransomware susceptibility and cyber security posture scoring integrated with external threat intelligence APIs (BitSight, SecurityScorecard). GW Cloud has no native integration." },
+    { "severity": "HIGH",     "count": 6, "area": "GDPR/UK GDPR Compliance",     "detail": "Data volume-based ICO notification obligation triggers. ICO registration lookup and GDPR fine estimator logic require external regulatory data integration." },
+    { "severity": "MEDIUM",   "count": 4, "area": "Ransomware Sub-Coverage",     "detail": "Ransomware coverage with negotiation cost and cryptocurrency payment sublimits. GW Cloud coverage terms support sublimits -- negotiation cost rules need migration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "CyberRisk_Cyber.MFAImplemented",       "cloud": "CyberRisk.MFAStatus",                "status": "PARTIAL", "action": "Field supported -- mandatory MFA >£1M rule migration required" },
+    { "onPrem": "CyberRisk_Cyber.ICO_Registered",       "cloud": "External ICO API",                   "status": "GAP",     "action": "ICO register validation API integration required" },
+    { "onPrem": "CyberAccumulation_Cyber",              "cloud": "External Cat Model Integration",     "status": "GAP",     "action": "RMS Cyber/Cyence integration for accumulation monitoring -- major integration effort" },
+    { "onPrem": "CyberRisk_Cyber.CloudDependencyScore", "cloud": "External BitSight/SecurityScorecard","status": "GAP",     "action": "Cyber threat intelligence API integration -- new external connector required" }
+  ]
+}

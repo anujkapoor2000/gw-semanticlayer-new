@@ -1,0 +1,39 @@
+{
+  "summary": "Marine Liability insurance covering shipowners, charterers, and port operators for third-party liability arising from marine operations. Written on P&I Club rules or standalone market basis. Complex multi-party indemnity structures.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 51,
+  "entityCount": 26,
+  "ruleCount": 79,
+  "tableCount": 11,
+  "customExtensions": 13,
+  "apd": {
+    "product": "MarineLiabilityLine_MLLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "INT"],
+    "coverageGroups": [
+      { "id": "PANDI",   "name": "P&I (Protection & Indemnity)", "type": "CSL",    "mandatory": true,  "entity": "PANDICov_ML",     "gwCloud": "ProtectionIndemnityCoverage" },
+      { "id": "FD",      "name": "Freight, Demurrage & Defence", "type": "Limit",  "mandatory": false, "entity": "FDDCov_ML",       "gwCloud": "FreightDemurrageCoverage" },
+      { "id": "CHARTLIB","name": "Charterers Liability",         "type": "CSL",    "mandatory": false, "entity": "CharterCov_ML",   "gwCloud": "CharterersLiabilityCoverage" },
+      { "id": "PORTOP",  "name": "Port Operators Liability",     "type": "CSL",    "mandatory": false, "entity": "PortOpCov_ML",    "gwCloud": "PortOperatorsLiabilityCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "MarineOperator_ML",    "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 9, "description": "Marine operator entity. Custom: OperatorType, PIClubMembership, FleetTonnage, TradingPattern, CargoCategoriesHandled, PortStateControl_Detentions, ISM_CertStatus, ISPS_Compliance, MLC_Compliance." },
+    { "entity": "MLValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "79 rules: Port State Control detention history thresholds, ISM/ISPS/MLC certificate validity, P&I vs market basis eligibility, crew liability sublimit checks, cargo pollution trigger rules." }
+  ],
+  "relationships": [
+    { "from": "MarineOperator_ML",  "to": "PANDICov_ML",      "rel": "insuredUnder", "impact": "HIGH",   "note": "P&I coverage driven by operator compliance certificates and PSC record" },
+    { "from": "MLValidationPlugin", "to": "MarineOperator_ML","rel": "validates",    "impact": "MEDIUM", "note": "PSC detention and certificate rules are underwriting referral triggers" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "Port State Control Integration", "detail": "PSC detention history requires Paris MOU / Tokyo MOU data feed integration. No GW Cloud native integration -- external API required." },
+    { "severity": "HIGH",   "count": 4, "area": "ISM/ISPS/MLC Certificates",     "detail": "Crew and vessel compliance certificates with expiry tracking. GW Cloud document management supports certificate storage but expiry validation rules need migration." },
+    { "severity": "MEDIUM", "count": 4, "area": "P&I Club vs Market Basis",      "detail": "Eligibility determination for P&I Club vs standalone market policy. Custom Gosu logic -- GW Cloud underwriting rules can accommodate with configuration." },
+    { "severity": "LOW",    "count": 5, "area": "Multi-Party Indemnity",         "detail": "Charterer/shipowner liability allocation logic. GW Cloud multi-insured support available -- standard configuration work." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "MarineOperator_ML.PortStateControl_Detentions","cloud": "External PSC API",           "status": "GAP",     "action": "Paris MOU / Tokyo MOU API integration required" },
+    { "onPrem": "MarineOperator_ML.ISM_CertStatus",             "cloud": "Operator.CertificationStatus","status": "PARTIAL","action": "Generic certification status field -- ISM-specific rules need migration" },
+    { "onPrem": "MarineOperator_ML.PIClubMembership",           "cloud": "N/A",                        "status": "GAP",     "action": "Custom extension required -- P&I club directory integration" }
+  ]
+}

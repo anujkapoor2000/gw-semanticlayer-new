@@ -1,0 +1,40 @@
+{
+  "summary": "Business Interruption insurance covering loss of gross profit and increased costs of working following an insured physical damage event. Often written as an extension to Commercial Property. Complex indemnity period and turnover basis calculations.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 48,
+  "entityCount": 22,
+  "ruleCount": 74,
+  "tableCount": 12,
+  "customExtensions": 10,
+  "apd": {
+    "product": "BusinessInterruptionLine_BILine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE", "EU"],
+    "coverageGroups": [
+      { "id": "GROSSP",  "name": "Gross Profit",                "type": "Limit",  "mandatory": true,  "entity": "GrossProfitCov_BI",   "gwCloud": "GrossProfitCoverage" },
+      { "id": "GROSSREV","name": "Gross Revenue",               "type": "Limit",  "mandatory": false, "entity": "GrossRevCov_BI",      "gwCloud": "GrossRevenueCoverage" },
+      { "id": "ICOW",    "name": "Increased Cost of Working",   "type": "Limit",  "mandatory": false, "entity": "ICOWCov_BI",          "gwCloud": "IncreasedCostCoverage" },
+      { "id": "ADDIP",   "name": "Additional Indemnity Period", "type": "Limit",  "mandatory": false, "entity": "AddIPCov_BI",         "gwCloud": "AdditionalIndemnityPeriod" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "BIPolicy_BI",          "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 8, "description": "BI policy entity. Custom: IndemnityPeriodMonths, TurnoverBasis, AuditedAccounts, RateBasis, MaximumIndemnity, StandingChargesIncluded, WagesIncluded, SeasonalityFactor." },
+    { "entity": "BIValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "74 rules: indemnity period vs turnover adequacy, gross profit calculation basis, ICOW sublimit checks, seasonal adjustment validation, linked property policy checks." },
+    { "entity": "GrossProfitCov_BI",    "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 5, "description": "Gross profit coverage. Custom: AnnualTurnover, GrossProfitPercentage, CalculatedSumInsured, InadequacyWarningThreshold, RenewalAuditFlag." }
+  ],
+  "relationships": [
+    { "from": "BIPolicy_BI",        "to": "GrossProfitCov_BI",   "rel": "hasOne",    "impact": "HIGH",   "note": "Gross profit calculation depends on 8 policy-level custom fields" },
+    { "from": "BIValidationPlugin", "to": "BIPolicy_BI",         "rel": "validates", "impact": "MEDIUM", "note": "Indemnity period adequacy and turnover basis rules reference custom fields" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "Gross Profit Calculation",  "detail": "Custom gross profit basis calculation using audited accounts. GW Cloud BI module supports standard indemnity but custom calculation basis needs rule redesign." },
+    { "severity": "HIGH",   "count": 2, "area": "Linked Property Policy",    "detail": "BI must be linked to a property policy for trigger validation. GW Cloud cross-policy linking not natively supported -- custom relationship entity required." },
+    { "severity": "MEDIUM", "count": 4, "area": "Seasonality Adjustments",   "detail": "Seasonal turnover adjustment factors applied at rating. GW Cloud supports rating modifiers but seasonality factor table requires custom configuration." },
+    { "severity": "LOW",    "count": 5, "area": "Indemnity Period Options",  "detail": "12, 24, 36-month indemnity period options. GW Cloud supports standard periods -- configuration migration straightforward." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "BIPolicy_BI.IndemnityPeriodMonths", "cloud": "BIPolicy.IndemnityPeriod",         "status": "MAPPED",  "action": "Direct mapping -- GW Cloud native field" },
+    { "onPrem": "BIPolicy_BI.SeasonalityFactor",     "cloud": "N/A",                              "status": "GAP",     "action": "No GW Cloud equivalent -- custom rating modifier table required" },
+    { "onPrem": "GrossProfitCov_BI.AnnualTurnover",  "cloud": "GrossProfitCoverage.AnnualIncome", "status": "PARTIAL", "action": "Field exists -- calculation basis logic requires rule migration" }
+  ]
+}

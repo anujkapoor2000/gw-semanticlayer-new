@@ -1,0 +1,42 @@
+{
+  "summary": "Medical Malpractice insurance covering healthcare providers (hospitals, NHS trusts, GPs, consultants) for clinical negligence claims. UK market closely linked to NHS Resolution (CNST/LTPS) and CQC regulatory framework. Claims-made basis with long tail exposure.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 75,
+  "entityCount": 28,
+  "ruleCount": 108,
+  "tableCount": 11,
+  "customExtensions": 19,
+  "apd": {
+    "product": "MedicalMalpracticeLine_MedLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "CLINNEGL", "name": "Clinical Negligence",          "type": "CSL",    "mandatory": true,  "entity": "ClinNegCov_Med",   "gwCloud": "ClinicalNegligenceCoverage" },
+      { "id": "MEDDEF",   "name": "Defence Costs",                "type": "Limit",  "mandatory": true,  "entity": "DefCostCov_Med",   "gwCloud": "MedDefenceCostsCoverage" },
+      { "id": "GMCPROT",  "name": "GMC/NMC Fitness to Practise", "type": "Limit",  "mandatory": false, "entity": "RegProtCov_Med",   "gwCloud": "RegulatoryProtectionCoverage" },
+      { "id": "RUNOFF",   "name": "Run-Off (Death/Retirement)",   "type": "CSL",    "mandatory": false, "entity": "RunOffCov_Med",    "gwCloud": "MedRunOffCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "HealthcareProvider_Med","type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 12, "description": "Healthcare provider entity. Custom: ProviderType, CQC_Registration, GMC_SpecialtyCode, NHSOrganisationCode, AnnualPatientContacts, SpecialtyMixScore, NHSResolutionMember, Indemnity_Scheme, PrivatePracticeRatio, LocumCoverage, LitigationHistory, MedRegulatoryBody." },
+    { "entity": "MedValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "108 rules: CQC registration validity, GMC specialty risk loading, NHS Resolution scheme alignment, retroactive date continuity, LocumCoverage sub-limit adequacy, high-risk specialty exclusion triggers (obstetrics, neurosurgery)." },
+    { "entity": "ClinicalSpecialty_Med","type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 6,  "description": "Clinical specialty entity. Custom: SpecialtyCode, RiskGrade, ProcedureCount, HighRiskProcedureFlag, SpecialtyLimit, CrownIndemnityFlag." }
+  ],
+  "relationships": [
+    { "from": "HealthcareProvider_Med", "to": "ClinNegCov_Med",       "rel": "insuredUnder","impact": "HIGH",   "note": "Coverage limit driven by specialty mix, patient contacts, and NHS Resolution scheme -- 12 custom fields" },
+    { "from": "ClinicalSpecialty_Med",  "to": "HealthcareProvider_Med","rel": "performedBy", "impact": "HIGH",   "note": "Multi-specialty schedule with individual risk grades -- no direct GW Cloud equivalent" },
+    { "from": "MedValidationPlugin",    "to": "HealthcareProvider_Med","rel": "validates",   "impact": "HIGH",   "note": "CQC registration and NHS Resolution scheme rules are hard underwriting stops" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "CQC Registry Integration",      "detail": "CQC registration validation required at bind. No GW Cloud native CQC integration -- new regulatory API connector required." },
+    { "severity": "CRITICAL", "count": 3, "area": "NHS Resolution Alignment",      "detail": "NHS Resolution CNST/LTPS scheme membership affects coverage terms and premium. GW Cloud has no NHS Resolution integration -- custom scheme management entity required." },
+    { "severity": "HIGH",     "count": 5, "area": "Clinical Specialty Risk Grades","detail": "Multi-specialty risk grading and procedure count-based loading. Custom Gosu risk scoring -- GW Cloud rating rules can accommodate with significant configuration." },
+    { "severity": "HIGH",     "count": 4, "area": "Long-Tail Claims-Made",         "detail": "Claims-made basis with long run-off tail (obstetrics 25+ years). GW Cloud claims-made policy support available -- run-off premium calculation requires custom implementation." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "HealthcareProvider_Med.CQC_Registration", "cloud": "External CQC API",              "status": "GAP",     "action": "CQC provider register API integration required" },
+    { "onPrem": "HealthcareProvider_Med.NHSResolutionMember","cloud":"N/A",                          "status": "GAP",     "action": "NHS Resolution scheme entity requires new GW Cloud design" },
+    { "onPrem": "ClinicalSpecialty_Med",                   "cloud": "N/A -- New Design Required",   "status": "GAP",     "action": "Clinical specialty schedule entity -- new GW Cloud design required" },
+    { "onPrem": "HealthcareProvider_Med.GMC_SpecialtyCode","cloud":"Provider.SpecialtyCode",        "status": "PARTIAL", "action": "Generic specialty code -- GMC specialty-specific risk grade table migration required" }
+  ]
+}
