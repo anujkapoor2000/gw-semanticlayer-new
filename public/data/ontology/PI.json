@@ -1,0 +1,38 @@
+{
+  "summary": "Professional Indemnity insurance covering professionals against claims for negligent acts, errors, and omissions in the provision of professional services. Broad UK market line covering solicitors, accountants, architects, consultants, and financial advisers.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 43,
+  "entityCount": 23,
+  "ruleCount": 72,
+  "tableCount": 9,
+  "customExtensions": 10,
+  "apd": {
+    "product": "ProfessionalIndemnityLine_PILine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "PICORE",  "name": "PI Core Cover",              "type": "CSL",    "mandatory": true,  "entity": "PICov_PI",       "gwCloud": "ProfessionalIndemnityCoverage" },
+      { "id": "PIDEF",   "name": "Defence Costs",              "type": "Limit",  "mandatory": true,  "entity": "DefCostCov_PI",  "gwCloud": "DefenceCostsCoverage" },
+      { "id": "PILOS",   "name": "Loss of Documents",          "type": "Limit",  "mandatory": false, "entity": "DocLossCov_PI",  "gwCloud": "DocumentLossCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "ProfessionalFirm_PI",  "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 9, "description": "Professional firm entity. Custom: ProfessionCode, SRANumber, ICASNumber, ARBNumber, FCAPermissions, QualifyingBodyMembership, FeeIncome, ClaimsHistoryYears, RunOffRequired." },
+    { "entity": "PIValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "72 rules: SRA/ICAS/ARB mandatory minimum limit enforcement, FCA permissions cross-check, claims history loading triggers, run-off premium calculation, retroactive date continuity checks." }
+  ],
+  "relationships": [
+    { "from": "ProfessionalFirm_PI", "to": "PICov_PI",          "rel": "insuredUnder", "impact": "MEDIUM", "note": "Limit adequacy and loading driven by profession code and fee income" },
+    { "from": "PIValidationPlugin",  "to": "ProfessionalFirm_PI","rel": "validates",   "impact": "MEDIUM", "note": "Regulatory body registration numbers are mandatory validation fields" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "Regulatory Body Lookups",     "detail": "SRA, ICAS, ARB registration validation requires live API lookups. No GW Cloud native integration -- external regulatory register APIs required." },
+    { "severity": "HIGH",   "count": 4, "area": "Mandatory Minimum Limits",    "detail": "SRA/ICAS/RIBA mandatory minimum limit rules by profession. GW Cloud validation rules support minimum limit enforcement -- profession code table migration required." },
+    { "severity": "MEDIUM", "count": 5, "area": "Run-Off Coverage",            "detail": "Run-off premium calculation for cessation of practice. GW Cloud supports run-off but custom premium calculation formula requires rule migration." },
+    { "severity": "LOW",    "count": 3, "area": "Retroactive Date Continuity", "detail": "Retroactive date tracking across policy renewals. GW Cloud renewal workflow supports retroactive date -- minor configuration work." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "ProfessionalFirm_PI.SRANumber",       "cloud": "External SRA API",              "status": "GAP",     "action": "SRA online register validation API integration required" },
+    { "onPrem": "ProfessionalFirm_PI.ProfessionCode",  "cloud": "InsuredOrg.ProfessionCode",     "status": "MAPPED",  "action": "TypeKey migration required -- profession code list extension" },
+    { "onPrem": "ProfessionalFirm_PI.RunOffRequired",  "cloud": "Policy.RunOffIndicator",        "status": "PARTIAL", "action": "Run-off indicator supported -- premium calculation formula needs migration" }
+  ]
+}

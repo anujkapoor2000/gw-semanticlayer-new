@@ -1,0 +1,44 @@
+{
+  "summary": "Commercial Property insurance covering buildings, contents, and stock against physical loss or damage. Key London Market line with significant Lloyd's syndicate participation. Complex survey and sum-insured adequacy requirements.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 55,
+  "entityCount": 29,
+  "ruleCount": 96,
+  "tableCount": 18,
+  "customExtensions": 14,
+  "apd": {
+    "product": "CommercialPropertyLine_PropLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE", "EU"],
+    "coverageGroups": [
+      { "id": "BLDG",   "name": "Buildings",               "type": "Limit",      "mandatory": true,  "entity": "BuildingsCov_Prop",   "gwCloud": "BuildingsCoverage" },
+      { "id": "CONT",   "name": "Contents",                "type": "Limit",      "mandatory": false, "entity": "ContentsCov_Prop",    "gwCloud": "ContentsCoverage" },
+      { "id": "STOCK",  "name": "Stock / Merchandise",     "type": "Limit",      "mandatory": false, "entity": "StockCov_Prop",       "gwCloud": "StockCoverage" },
+      { "id": "MACH",   "name": "Machinery & Plant",       "type": "Limit",      "mandatory": false, "entity": "MachineCov_Prop",     "gwCloud": "MachineryPlantCoverage" },
+      { "id": "PDELI",  "name": "Deterioration of Stock",  "type": "Limit",      "mandatory": false, "entity": "DetStockCov_Prop",    "gwCloud": "DeteriorationCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "PropertyLocation_Prop", "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 11, "description": "Commercial property location. Custom: ConstructionClass, OccupancyCode, ProtectionGrade, BREEAM_Rating, FloodRisk_EA, SubsidenceRisk, NamedPerilsList, AgreedValue, ReinstatementBasis, SurveyRequired, SumInsuredAdequacy." },
+    { "entity": "PropValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0,  "description": "96 rules: sum insured adequacy checks, flood zone acceptance criteria, subsidence exclusion triggers, construction class rating, BREEAM discount eligibility." },
+    { "entity": "PropRatingEngine",      "type": "Rating",     "migrationRisk": "MEDIUM", "customFields": 3,  "description": "Peril-based rating model. Separate rate tables per peril (fire, flood, subsidence, theft). 18 rate tables including EA flood map data." },
+    { "entity": "BuildingsCov_Prop",     "type": "APD Custom", "migrationRisk": "LOW",    "customFields": 4,  "description": "Buildings coverage. Custom: ReinstatementValue, DebrisRemovalLimit, ArchitectsFees, TenantImprovements." }
+  ],
+  "relationships": [
+    { "from": "PropertyLocation_Prop", "to": "BuildingsCov_Prop",    "rel": "hasOne",       "impact": "MEDIUM", "note": "Coverage limits tied to location reinstatement value -- adequacy check required" },
+    { "from": "PropValidationPlugin",  "to": "PropertyLocation_Prop","rel": "validates",    "impact": "MEDIUM", "note": "Flood zone and subsidence rules reference EA data fields" },
+    { "from": "PropRatingEngine",      "to": "PropertyLocation_Prop","rel": "ratesUsing",   "impact": "MEDIUM", "note": "Peril-split rating uses 8 location custom fields" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "EA Flood Map Integration",   "detail": "Environment Agency flood risk data embedded in rate tables. GW Cloud requires external enrichment API -- EA data feed integration needed." },
+    { "severity": "HIGH",   "count": 4, "area": "Peril-Split Rating Model",   "detail": "Separate rate tables per peril not natively supported in GW Cloud rating framework. Requires custom rating plugin or CloudRate restructure." },
+    { "severity": "MEDIUM", "count": 5, "area": "Sum Insured Adequacy",       "detail": "Adequacy check rules compare insured value vs rebuild cost index. GW Cloud supports limit validation but rebuild cost index integration needs mapping." },
+    { "severity": "LOW",    "count": 6, "area": "BREEAM / Green Rating",      "detail": "BREEAM sustainability rating discount logic. GW Cloud has no native sustainability discount -- custom discount table required." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "PropertyLocation_Prop.FloodRisk_EA",   "cloud": "LocationEnrichment.FloodRiskScore", "status": "PARTIAL", "action": "GW Cloud enrichment API -- EA flood map data feed integration required" },
+    { "onPrem": "PropertyLocation_Prop.BREEAM_Rating",  "cloud": "N/A",                               "status": "GAP",     "action": "No GW Cloud equivalent -- custom extension field required" },
+    { "onPrem": "BuildingsCov_Prop.ReinstatementValue", "cloud": "BuildingsCoverage.ReplacementCost", "status": "MAPPED",  "action": "Direct mapping -- field rename only" },
+    { "onPrem": "PropRatingEngine (peril split)",       "cloud": "CloudRate or External",             "status": "PARTIAL", "action": "Restructure peril tables to GW Cloud rating framework -- moderate effort" }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "summary": "Employment Practices Liability insurance covering employers against claims by employees for wrongful termination, discrimination, harassment, and other employment-related wrongful acts. Growing UK line driven by ACAS early conciliation trends.",
+  "migrationComplexity": "LOW",
+  "migrationScore": 35,
+  "entityCount": 19,
+  "ruleCount": 58,
+  "tableCount": 6,
+  "customExtensions": 7,
+  "apd": {
+    "product": "EPLILine_EPLILine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "EPLIMAIN","name": "EPLI Core Cover",             "type": "CSL",    "mandatory": true,  "entity": "EPLICov",        "gwCloud": "EPLICoverage" },
+      { "id": "EPLIWAGE","name": "Wage & Hour Defence",         "type": "Limit",  "mandatory": false, "entity": "WageHourCov",    "gwCloud": "WageHourCoverage" },
+      { "id": "EPLITHP", "name": "Third Party Harassment",      "type": "Limit",  "mandatory": false, "entity": "TPHarrassCov",   "gwCloud": "ThirdPartyHarassmentCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "EmployerRisk_EPLI",    "type": "APD Custom", "migrationRisk": "LOW",    "customFields": 8, "description": "Employer risk entity. Custom: EmployeeCount, AnnualPayroll, HighRiskRoles, UnionisedFlag, PriorEmploymentClaimsCount, HRHandbookUpToDate, EDI_PolicyInPlace, TribunalClaimsPA." },
+    { "entity": "EPLIValidationPlugin", "type": "Gosu Rule",  "migrationRisk": "LOW",    "customFields": 0, "description": "58 rules: employee count-based limit adequacy, prior tribunal claims loading, HR handbook currency check, unionised workforce loading, protected characteristic exposure scoring." }
+  ],
+  "relationships": [
+    { "from": "EmployerRisk_EPLI",    "to": "EPLICov",           "rel": "insuredUnder", "impact": "LOW",    "note": "EPLI limit adequacy driven by employee count and prior claims history" },
+    { "from": "EPLIValidationPlugin", "to": "EmployerRisk_EPLI", "rel": "validates",    "impact": "LOW",    "note": "HR handbook and EDI policy rules are premium modifiers" }
+  ],
+  "migrationIssues": [
+    { "severity": "MEDIUM", "count": 3, "area": "ACAS Conciliation Integration", "detail": "ACAS early conciliation number tracking for claims. GW Cloud claims management supports reference tracking -- ACAS portal integration for claim validation required." },
+    { "severity": "MEDIUM", "count": 2, "area": "Protected Characteristics Scoring","detail": "Exposure scoring based on protected characteristic profile of workforce. Custom Gosu scoring algorithm -- GW Cloud rating rules can accommodate with configuration." },
+    { "severity": "LOW",    "count": 4, "area": "Tribunal Claims History",       "detail": "Employment tribunal claims history loading. GW Cloud prior claims loading supported natively -- straightforward migration." },
+    { "severity": "LOW",    "count": 3, "area": "Third Party Harassment Extension","detail":"Post-MeToo third party harassment extension. GW Cloud coverage extension model supports -- minor configuration work." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "EmployerRisk_EPLI.TribunalClaimsPA",  "cloud": "InsuredOrg.PriorClaimsCount",    "status": "MAPPED",  "action": "Direct mapping -- field rename only" },
+    { "onPrem": "EmployerRisk_EPLI.EDI_PolicyInPlace", "cloud": "InsuredOrg.DEIIndicator",        "status": "PARTIAL", "action": "Generic D&I indicator -- EPLI-specific scoring logic needs migration" },
+    { "onPrem": "EPLIValidationPlugin (ACAS rules)",   "cloud": "External ACAS Portal",           "status": "GAP",     "action": "ACAS conciliation number validation -- external API integration" }
+  ]
+}

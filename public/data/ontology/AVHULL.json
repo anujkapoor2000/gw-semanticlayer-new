@@ -1,0 +1,41 @@
+{
+  "summary": "Aviation Hull insurance covering physical loss or damage to aircraft. Written on AVN 1C or equivalent Lloyd's Aviation policy wording. Complex fleet scheduling, airworthiness requirements, and agreed value structures.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 73,
+  "entityCount": 28,
+  "ruleCount": 94,
+  "tableCount": 12,
+  "customExtensions": 18,
+  "apd": {
+    "product": "AviationHullLine_AVHLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "INT"],
+    "coverageGroups": [
+      { "id": "AVHULL",  "name": "Aircraft Hull (All Risks)",  "type": "AgreedValue", "mandatory": true,  "entity": "HullCov_AVH",     "gwCloud": "AircraftHullCoverage" },
+      { "id": "SPARES",  "name": "Spare Parts & Engines",      "type": "Limit",       "mandatory": false, "entity": "SparesCov_AVH",   "gwCloud": "SparePartsCoverage" },
+      { "id": "WARHULL", "name": "Hull War Risks (AVN52E)",    "type": "AgreedValue", "mandatory": false, "entity": "WarHullCov_AVH",  "gwCloud": "HullWarRisksCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "Aircraft_AVH",          "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 13, "description": "Aircraft entity. Custom: ICAO_Registration, AircraftType, MTOW_KG, EngineType, EngineCount, YearOfManufacture, AirworthinessCategory, CofA_Expiry, MaintenanceProgramme, LeaseFlag, LessorName, OperatingBases, FlightHoursPA." },
+    { "entity": "AVHValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "94 rules: Certificate of Airworthiness expiry check, MTOW-based hull valuation adequacy, lessors interest validation, war risk area fleet scheduling, age-related exclusions." },
+    { "entity": "FleetSchedule_AVH",     "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 7,  "description": "Fleet scheduling entity. Custom: FleetRef, ScheduleBasis, AutoAddThreshold, TemporaryReplacementFlag, FleetAgreedValue, MaxSingleAircraft, FleetCompositionRestriction." }
+  ],
+  "relationships": [
+    { "from": "Aircraft_AVH",        "to": "HullCov_AVH",      "rel": "coveredBy",   "impact": "HIGH",   "note": "Agreed hull value and deductibles driven by 13 aircraft custom fields" },
+    { "from": "FleetSchedule_AVH",   "to": "Aircraft_AVH",     "rel": "schedules",   "impact": "HIGH",   "note": "Fleet entity has no GW Cloud equivalent -- no direct aviation fleet scheduling support" },
+    { "from": "AVHValidationPlugin", "to": "Aircraft_AVH",     "rel": "validates",   "impact": "HIGH",   "note": "CofA expiry and MTOW rules are hard underwriting stops" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 3, "area": "Aircraft Entity",               "detail": "Aircraft_AVH has 13 custom fields with no standard GW Cloud aviation entity. New aircraft entity design required." },
+    { "severity": "CRITICAL", "count": 2, "area": "Fleet Scheduling",              "detail": "FleetSchedule_AVH has no GW Cloud equivalent. Aviation fleet with auto-add provisions requires new GW Cloud entity design." },
+    { "severity": "HIGH",     "count": 4, "area": "CofA Expiry Validation",        "detail": "Certificate of Airworthiness expiry triggers policy cancellation. GW Cloud document expiry tracking needs custom integration with CAA registry." },
+    { "severity": "HIGH",     "count": 3, "area": "Lessors Interest",              "detail": "Finance lease and operating lease lessor interest endorsements. GW Cloud additional insured support available -- complex lessor interest logic needs migration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "Aircraft_AVH.ICAO_Registration",  "cloud": "N/A -- New Aircraft Entity",  "status": "GAP",     "action": "ICAO registry integration required for aircraft validation -- new entity design" },
+    { "onPrem": "Aircraft_AVH.CofA_Expiry",        "cloud": "External CAA Registry API",   "status": "GAP",     "action": "CAA G-INFO registry API integration for airworthiness certificate tracking" },
+    { "onPrem": "FleetSchedule_AVH",               "cloud": "N/A -- New Design Required",  "status": "GAP",     "action": "Aviation fleet scheduling entity -- 3-4 sprint design effort" },
+    { "onPrem": "Aircraft_AVH.LeaseFlag",           "cloud": "Aircraft.FinanceArrangement", "status": "PARTIAL", "action": "Generic finance arrangement field -- lessor interest endorsement logic migration required" }
+  ]
+}

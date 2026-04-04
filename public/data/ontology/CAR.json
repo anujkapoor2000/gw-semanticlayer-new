@@ -1,0 +1,44 @@
+{
+  "summary": "Contractors All Risks insurance covering construction projects against physical loss or damage during the construction period. JCT and NEC contract aligned. Complex project-based policy with project value, duration, and contractor-specific risk factors.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 69,
+  "entityCount": 34,
+  "ruleCount": 122,
+  "tableCount": 17,
+  "customExtensions": 20,
+  "apd": {
+    "product": "ContractorsAllRisksLine_CARLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "CARWORKS",  "name": "Contract Works (Perm & Temp)", "type": "Limit",  "mandatory": true,  "entity": "WorksCov_CAR",      "gwCloud": "ContractWorksCoverage" },
+      { "id": "CARTPL",    "name": "Third Party Liability",        "type": "CSL",    "mandatory": true,  "entity": "TPLCov_CAR",        "gwCloud": "ContractorsTPLCoverage" },
+      { "id": "CAREOE",    "name": "Existing Structures",          "type": "Limit",  "mandatory": false, "entity": "ExistStructCov_CAR", "gwCloud": "ExistingStructuresCoverage" },
+      { "id": "CARPLANT",  "name": "Plant & Equipment",            "type": "Limit",  "mandatory": false, "entity": "PlantCov_CAR",      "gwCloud": "PlantEquipmentCoverage" },
+      { "id": "CARDE",     "name": "Delay in Start Up",            "type": "Limit",  "mandatory": false, "entity": "DSUCov_CAR",        "gwCloud": "DelayStartUpCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "ConstructionProject_CAR","type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 13, "description": "Construction project entity. Custom: ProjectType, ContractValue, ProjectDuration, ContractForm_JCT_NEC, PrincipalContractor, CSDDDate, PCDate, HandoverDate, RetentionPeriod, GroundConditionSurvey, FloodplainFlag, ProjectManagementSystem, BIMLevel." },
+    { "entity": "CARValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "122 rules: contract value to TPL adequacy check, JCT vs NEC form validation, groundwork below/above water table triggers, retention period DSU eligibility, BIM compliance discount, project duration extension premium adjustment." },
+    { "entity": "Subcontractor_CAR",     "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 6,  "description": "Subcontractor entity. Custom: SubcontractorValue, TradeType, CompetenceScheme, CISSafetyFlag, SubcontractForm, BackToBackRequirement." }
+  ],
+  "relationships": [
+    { "from": "ConstructionProject_CAR","to": "WorksCov_CAR",    "rel": "insuredUnder","impact": "HIGH",   "note": "Contract works limit = contract value + professional fees -- 13 project fields involved" },
+    { "from": "Subcontractor_CAR",      "to": "ConstructionProject_CAR","rel":"partOf","impact": "MEDIUM", "note": "Subcontractor scheduling -- no direct GW Cloud sub-schedule entity pattern" },
+    { "from": "CARValidationPlugin",    "to": "ConstructionProject_CAR","rel":"validates","impact":"HIGH", "note": "122 rules include project duration, contract form, and ground condition triggers" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "Project Entity",               "detail": "ConstructionProject_CAR has 13 custom fields. No standard GW Cloud construction project entity. New entity design required for GW Cloud migration." },
+    { "severity": "CRITICAL", "count": 2, "area": "Project Duration Adjustments", "detail": "Premium adjustment on project completion/extension is time-based. GW Cloud transaction model does not natively support project duration adjustments -- custom transaction type required." },
+    { "severity": "HIGH",     "count": 5, "area": "JCT/NEC Contract Forms",       "detail": "JCT and NEC contract form validation and coverage alignment. 122 Gosu rules reference contract form type -- rule migration required for GW Cloud." },
+    { "severity": "HIGH",     "count": 4, "area": "Subcontractor Scheduling",     "detail": "Dynamic subcontractor scheduling with back-to-back requirements. GW Cloud has no native contractor schedule -- custom entity and workflow required." },
+    { "severity": "MEDIUM",   "count": 6, "area": "BIM Level Discount",           "detail": "BIM Level 2/3 discount not in GW Cloud rating framework -- custom discount table required." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "ConstructionProject_CAR.ContractValue", "cloud": "Project.ContractValue",          "status": "MAPPED",  "action": "Direct mapping -- GW Cloud project entity field" },
+    { "onPrem": "ConstructionProject_CAR.BIMLevel",      "cloud": "N/A",                            "status": "GAP",     "action": "Custom extension field required -- BIM discount table" },
+    { "onPrem": "Subcontractor_CAR",                     "cloud": "N/A -- New Design Required",     "status": "GAP",     "action": "Subcontractor schedule entity requires new GW Cloud design" },
+    { "onPrem": "CARValidationPlugin (JCT/NEC rules)",   "cloud": "ValidationPlugin (Cloud)",       "status": "PARTIAL", "action": "122 rules require review -- JCT/NEC contract form logic needs migration" }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "summary": "Marine Cargo insurance covering goods in transit by sea, air, road, and rail. Written on Institute Cargo Clauses (A), (B), or (C). Key London Market line with open cover and declaration-based policy structures.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 44,
+  "entityCount": 27,
+  "ruleCount": 84,
+  "tableCount": 13,
+  "customExtensions": 12,
+  "apd": {
+    "product": "MarineCargoLine_MCLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "INT"],
+    "coverageGroups": [
+      { "id": "CARGOA",  "name": "Institute Cargo Clauses (A)", "type": "Limit",  "mandatory": false, "entity": "CargoACov_MC",     "gwCloud": "CargoClausesACoverage" },
+      { "id": "CARGOB",  "name": "Institute Cargo Clauses (B)", "type": "Limit",  "mandatory": false, "entity": "CargoBCov_MC",     "gwCloud": "CargoClausesBCoverage" },
+      { "id": "CARGOC",  "name": "Institute Cargo Clauses (C)", "type": "Limit",  "mandatory": false, "entity": "CargoCCov_MC",     "gwCloud": "CargoClausesCCoverage" },
+      { "id": "WARCAR",  "name": "War & Strikes (Cargo)",       "type": "Limit",  "mandatory": false, "entity": "WarStrikesCov_MC", "gwCloud": "WarStrikesCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "CargoCommodity_MC",    "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 10, "description": "Commodity entity. Custom: CommodityCode, PackingType, HazardClass_IMDG, Temperature_Controlled, ContainerType, ValueBasis, InspectionRequired, CounterfeitRisk, BrandedGoods, CertsRequired." },
+    { "entity": "OpenCover_MC",         "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 8,  "description": "Open cover policy structure. Custom: OpenCoverRef, DeclarationBasis, MaxSingleShipment, AnnualTurnoverLimit, AutoBindLimit, DeclarationFrequency, CoverExpiryDate, AuditRequired." },
+    { "entity": "MCValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0,  "description": "84 rules: commodity code acceptance lists, IMDG hazard class exclusions, packing adequacy checks, open cover declaration limit enforcement, war area routing restrictions." }
+  ],
+  "relationships": [
+    { "from": "OpenCover_MC",        "to": "CargoCommodity_MC", "rel": "covers",    "impact": "HIGH",   "note": "Open cover declaration basis requires dynamic commodity acceptance -- no GW Cloud equivalent" },
+    { "from": "MCValidationPlugin",  "to": "CargoCommodity_MC", "rel": "validates", "impact": "MEDIUM", "note": "IMDG hazard class and commodity acceptance rules reference custom fields" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 3, "area": "Open Cover Structure",         "detail": "Open cover policy with declaration basis has no direct GW Cloud equivalent. GW Cloud supports single-trip and annual policies -- open cover requires new policy structure design." },
+    { "severity": "HIGH",     "count": 4, "area": "IMDG Hazardous Goods",        "detail": "IMDG hazard class validation requires current hazmat commodity list integration. GW Cloud validation rules can accommodate but IMDG data feed required." },
+    { "severity": "MEDIUM",   "count": 5, "area": "Commodity Code Acceptance",   "detail": "Custom commodity acceptance and exclusion lists. GW Cloud underwriting rules support list-based restrictions -- configuration migration straightforward." },
+    { "severity": "LOW",      "count": 4, "area": "Institute Clauses Selection", "detail": "ICC (A/B/C) clause selection logic. GW Cloud coverage terms support clause selection -- minor configuration work." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "OpenCover_MC",                        "cloud": "N/A -- New Design Required",    "status": "GAP",     "action": "Open cover policy structure requires new GW Cloud entity and declaration workflow" },
+    { "onPrem": "CargoCommodity_MC.HazardClass_IMDG",  "cloud": "Commodity.HazardClassCode",    "status": "PARTIAL", "action": "Field supported -- IMDG data feed integration and acceptance list migration required" },
+    { "onPrem": "CargoCommodity_MC.CommodityCode",     "cloud": "Commodity.CommodityCode",      "status": "MAPPED",  "action": "Direct mapping -- TypeKey migration required for custom codes" }
+  ]
+}

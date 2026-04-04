@@ -1,0 +1,39 @@
+{
+  "summary": "Jewellers Block insurance covering jewellery manufacturers, wholesalers, and retailers for stock, display, transit, and customers' items. All-risks basis with specific exclusions for mysterious disappearance and employee dishonesty threshold.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 47,
+  "entityCount": 21,
+  "ruleCount": 65,
+  "tableCount": 8,
+  "customExtensions": 11,
+  "apd": {
+    "product": "JewellersBlockLine_JBLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "JBSTOCK",  "name": "Stock on Premises",            "type": "Limit",  "mandatory": true,  "entity": "StockCov_JB",      "gwCloud": "JewellerStockCoverage" },
+      { "id": "JBTRANS",  "name": "Stock in Transit",             "type": "Limit",  "mandatory": true,  "entity": "TransitCov_JB",    "gwCloud": "JewellerTransitCoverage" },
+      { "id": "JBDISP",   "name": "Exhibition & Display",         "type": "Limit",  "mandatory": false, "entity": "DisplayCov_JB",    "gwCloud": "JewellerDisplayCoverage" },
+      { "id": "JBCUST",   "name": "Customers' Property",          "type": "Limit",  "mandatory": false, "entity": "CustPropCov_JB",   "gwCloud": "CustomersPropertyCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "JewellerRisk_JB",     "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 9, "description": "Jeweller risk entity. Custom: TradeType, TIV_Stock, DiamondGrade, HallmarkingFlag, SafeType, VaultGrade, AlarmStandard, SecuritySurveyDate, AntiSocial_History." },
+    { "entity": "JBValidationPlugin",  "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "65 rules: safe and vault grade requirements by stock value band, alarm standard compliance (NSI Gold), transit carrier approval, display limit ratios, diamond value maximum schedules." }
+  ],
+  "relationships": [
+    { "from": "JewellerRisk_JB",    "to": "StockCov_JB",       "rel": "insuredUnder", "impact": "MEDIUM", "note": "Stock limit and security requirements driven by TIV and safe/vault grade" },
+    { "from": "JBValidationPlugin", "to": "JewellerRisk_JB",   "rel": "validates",    "impact": "MEDIUM", "note": "NSI Gold alarm standard and safe grade rules are limit-gating controls" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "Security Grade Requirements",   "detail": "Safe and vault grade-based limit gating rules. GW Cloud underwriting rules support grade-based limits -- security classification TypeKey migration required." },
+    { "severity": "HIGH",   "count": 2, "area": "NSI/SSAIB Alarm Validation",   "detail": "NSI Gold / SSAIB alarm certificate validation required above threshold. External NSI register integration required -- no GW Cloud native security industry integration." },
+    { "severity": "MEDIUM", "count": 4, "area": "Diamond Schedule",             "detail": "Individual diamond schedule above value threshold. GW Cloud schedule item entity supports -- configuration work for diamond-specific fields." },
+    { "severity": "LOW",    "count": 4, "area": "Transit Carrier Approval",     "detail": "Approved carrier list for high-value transit. GW Cloud carrier validation supports list-based approval -- configuration migration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "JewellerRisk_JB.AlarmStandard",   "cloud": "RiskLocation.AlarmGradeCode",       "status": "PARTIAL", "action": "Generic alarm grade -- NSI Gold-specific TypeKey and validation rule migration required" },
+    { "onPrem": "JewellerRisk_JB.SafeType",        "cloud": "RiskLocation.SafeGradeCode",        "status": "MAPPED",  "action": "TypeKey migration required -- safe grade classification list" },
+    { "onPrem": "JBValidationPlugin (NSI rules)",  "cloud": "External NSI Register API",         "status": "GAP",     "action": "NSI/SSAIB alarm certificate validation API integration required" }
+  ]
+}

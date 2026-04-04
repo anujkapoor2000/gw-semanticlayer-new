@@ -1,0 +1,39 @@
+{
+  "summary": "Engineering / Machinery Breakdown insurance covering sudden and unforeseen physical damage to machinery, plant, and equipment in operation. Includes boiler and pressure vessel inspection services. FCA-regulated product with statutory inspection obligations under PSSR 2000.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 49,
+  "entityCount": 26,
+  "ruleCount": 83,
+  "tableCount": 13,
+  "customExtensions": 12,
+  "apd": {
+    "product": "EngineeringLine_ENGLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "MACHBRK",  "name": "Machinery Breakdown",         "type": "Limit",  "mandatory": true,  "entity": "MachBrkCov_ENG",    "gwCloud": "MachineryBreakdownCoverage" },
+      { "id": "BOILER",   "name": "Boiler & Pressure Vessel",    "type": "Limit",  "mandatory": false, "entity": "BoilerCov_ENG",     "gwCloud": "BoilerPressureCoverage" },
+      { "id": "ELECBRK",  "name": "Electronic Equipment",       "type": "Limit",  "mandatory": false, "entity": "ElecCov_ENG",       "gwCloud": "ElectronicEquipmentCoverage" },
+      { "id": "BDOWN_BI", "name": "Machinery Breakdown BI",     "type": "Limit",  "mandatory": false, "entity": "MachBICov_ENG",     "gwCloud": "MachineryBICoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "Machinery_ENG",         "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 9, "description": "Machinery item entity. Custom: PlantItemRef, MachineType, ManufacturerCode, YearOfManufacture, InsuredValue, InspectionScheme, LastInspectionDate, NextInspectionDate, PSSR2000_Applicable." },
+    { "entity": "ENGValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "83 rules: PSSR 2000 written scheme inspection requirement, boiler inspection currency, machinery age-based deductible application, inspection scheme provider validation, electronic equipment age limits." }
+  ],
+  "relationships": [
+    { "from": "Machinery_ENG",       "to": "MachBrkCov_ENG",   "rel": "coveredBy", "impact": "MEDIUM", "note": "Coverage terms driven by machine type and inspection status" },
+    { "from": "ENGValidationPlugin", "to": "Machinery_ENG",    "rel": "validates", "impact": "MEDIUM", "note": "PSSR 2000 inspection rules are statutory compliance hard stops" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 3, "area": "PSSR 2000 Inspection Tracking","detail": "Pressure Systems Safety Regulations 2000 written scheme inspection tracking. GW Cloud has no native PSSR compliance module -- external inspection tracking system integration required." },
+    { "severity": "HIGH",   "count": 4, "area": "Inspection Scheme Providers",  "detail": "Approved inspection scheme provider validation (Lloyd's Register, Bureau Veritas, etc.). External provider register lookup required -- no GW Cloud native integration." },
+    { "severity": "MEDIUM", "count": 5, "area": "Machinery Schedule",           "detail": "Multi-item machinery schedule with individual limits and deductibles. GW Cloud schedule entity supports -- configuration migration work required." },
+    { "severity": "LOW",    "count": 4, "area": "Age-Based Deductibles",        "detail": "Machine age-based deductible schedule. GW Cloud rating tables support age modifiers -- straightforward migration." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "Machinery_ENG.PSSR2000_Applicable",    "cloud": "N/A",                                "status": "GAP",     "action": "PSSR 2000 compliance flag requires custom extension and inspection tracking integration" },
+    { "onPrem": "Machinery_ENG.InspectionScheme",       "cloud": "External Inspection Provider API",   "status": "GAP",     "action": "Inspection scheme provider validation -- external register API integration" },
+    { "onPrem": "Machinery_ENG.InsuredValue",           "cloud": "PlantItem.InsuredValue",             "status": "MAPPED",  "action": "Direct mapping -- GW Cloud native field" }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "summary": "Infrastructure / PFI Projects insurance covering large-scale public infrastructure projects under Private Finance Initiative (PFI) / Public Private Partnership (PPP) structures. Complex multi-party, long-duration policies with step-in rights and lenders' interests.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 84,
+  "entityCount": 37,
+  "ruleCount": 138,
+  "tableCount": 15,
+  "customExtensions": 25,
+  "apd": {
+    "product": "InfrastructureLine_INFRALine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE"],
+    "coverageGroups": [
+      { "id": "INFRAPROP",  "name": "Infrastructure Property Damage","type": "Limit","mandatory": true, "entity": "InfraPropCov",     "gwCloud": "InfrastructurePropertyCoverage" },
+      { "id": "INFRATPL",   "name": "Public Liability",              "type": "CSL", "mandatory": true, "entity": "InfraTPLCov",      "gwCloud": "InfrastructureTPLCoverage" },
+      { "id": "INFRADSU",   "name": "Delay in Revenue",              "type": "Limit","mandatory": false,"entity": "InfraDSUCov",     "gwCloud": "InfrastructureDSUCoverage" },
+      { "id": "INFRALEND",  "name": "Lenders' Interest",             "type": "Limit","mandatory": false,"entity": "LendersCov",      "gwCloud": "LendersInterestCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "InfraProject_INFRA",   "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 14, "description": "Infrastructure project entity. Custom: ProjectType, ProjectValue, PFI_ContractRef, SPV_Name, ConcessionPeriodYears, AuthorityName, StepInRightsTrigger, FundingStructure, LenderSyndicate, DBFO_Contractor, OperationalPhaseStart, SubDebtRatio, SeniorDebtRatio, ProjectRating." },
+    { "entity": "INFRAValidationPlugin","type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "138 rules: SPV corporate structure validation, lenders' interest co-insured requirements, step-in rights trigger conditions, DBFO contractor approval, concession period-based premium adjustment, PFI contract alignment checks." },
+    { "entity": "LenderEntity_INFRA",   "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 8,  "description": "Lender entity. Custom: LenderName, LenderType, DebtTranche, LoanAmount, SecurityPackage, CovenantTriggers, StepInApprovalRequired, InstitutionalLenderFlag." }
+  ],
+  "relationships": [
+    { "from": "InfraProject_INFRA", "to": "LenderEntity_INFRA",   "rel": "securedBy",   "impact": "HIGH",   "note": "Lender syndicate interests require co-insured registration -- complex multi-party structure" },
+    { "from": "InfraProject_INFRA", "to": "InfraPropCov",         "rel": "insuredUnder","impact": "HIGH",   "note": "Coverage driven by 14 project custom fields including SPV and concession structure" },
+    { "from": "INFRAValidationPlugin","to":"InfraProject_INFRA",  "rel": "validates",   "impact": "HIGH",   "note": "138 rules include PFI contract alignment and lender covenant triggers" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 5, "area": "PFI/PPP Project Entity",       "detail": "InfraProject_INFRA has 14 custom fields for PFI contract structures. No GW Cloud equivalent for PFI-specific entity -- major new entity design required." },
+    { "severity": "CRITICAL", "count": 4, "area": "Lender Syndicate Management",  "detail": "LenderEntity_INFRA manages complex lender syndicate co-insured registration. GW Cloud additional insured supports individual parties -- syndicate management requires custom solution." },
+    { "severity": "HIGH",     "count": 5, "area": "Concession Period Adjustments","detail": "Long-duration concession period (typically 25-35 years) with annual premium adjustments. GW Cloud multi-year policy support limited -- custom long-duration policy structure required." },
+    { "severity": "HIGH",     "count": 6, "area": "Step-In Rights Triggers",      "detail": "Automatic step-in rights trigger conditions linked to SPV financial covenants. GW Cloud workflow engine can support -- complex conditional logic migration required." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "InfraProject_INFRA.PFI_ContractRef",  "cloud": "N/A -- New Design Required",    "status": "GAP",     "action": "PFI contract reference entity requires new GW Cloud design -- regulatory requirement" },
+    { "onPrem": "LenderEntity_INFRA",                  "cloud": "N/A -- New Design Required",    "status": "GAP",     "action": "Lender syndicate entity requires new GW Cloud design -- 4-5 sprint effort" },
+    { "onPrem": "InfraProject_INFRA.StepInRightsTrigger","cloud":"Policy.ConditionalTrigger",    "status": "PARTIAL", "action": "Generic conditional trigger -- PFI-specific step-in logic requires custom workflow" }
+  ]
+}

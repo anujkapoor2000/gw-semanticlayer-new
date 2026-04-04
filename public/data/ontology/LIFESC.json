@@ -1,0 +1,42 @@
+{
+  "summary": "Life Sciences / Clinical Trials insurance covering pharmaceutical companies, biotech firms, and CROs for product liability, clinical trial indemnity, and recall costs. Highly regulated under MHRA/EMA. Complex per-trial and per-participant exposure structures.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 80,
+  "entityCount": 31,
+  "ruleCount": 115,
+  "tableCount": 12,
+  "customExtensions": 22,
+  "apd": {
+    "product": "LifeSciencesLine_LSLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "EU", "INT"],
+    "coverageGroups": [
+      { "id": "CLINTRIAL","name": "Clinical Trial Indemnity",      "type": "Limit",  "mandatory": true,  "entity": "ClinTrialCov_LS",  "gwCloud": "ClinicalTrialCoverage" },
+      { "id": "PRODLIAB", "name": "Product Liability",             "type": "CSL",    "mandatory": true,  "entity": "ProdLiabCov_LS",   "gwCloud": "ProductLiabilityCoverage" },
+      { "id": "RECALL",   "name": "Product Recall & Contamination","type": "Limit",  "mandatory": false, "entity": "RecallCov_LS",     "gwCloud": "ProductRecallCoverage" },
+      { "id": "MLPRAC",   "name": "Medical Malpractice (CRO)",     "type": "CSL",    "mandatory": false, "entity": "MedMalCov_LS",     "gwCloud": "MedicalMalpracticeCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "ClinicalTrial_LS",     "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 13, "description": "Clinical trial entity. Custom: ISRCTN_Ref, EudraCT_Number, Phase, TherapeuticArea, ParticipantCount, SponsorOrganisation, CRO_Name, IMP_Name, IND_Application, MHRA_CTAuth_Date, EC_ApprovalDate, InclusionCriteria_Risk, CountriesOfTrial." },
+    { "entity": "LSValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "115 rules: MHRA/EMA CTA validity checks, Phase I/II/III/IV risk scoring, gene therapy and ATMP special conditions, first-in-human protocol triggers, participant count limit adequacy, therapeutic area exclusion list." },
+    { "entity": "PharmaceuticalProduct_LS","type":"APD Custom","migrationRisk": "HIGH",   "customFields": 8,  "description": "Product entity. Custom: ActiveIngredient, ATC_Code, MarketingAuthorisationStatus, RecallRiskScore, GMP_CertificateDate, QP_Name, BatchRecallCapability, DistributionReach." }
+  ],
+  "relationships": [
+    { "from": "ClinicalTrial_LS",     "to": "ClinTrialCov_LS",       "rel": "insuredUnder","impact": "HIGH",   "note": "Trial phase and participant count drive per-participant limit adequacy -- 13 custom fields" },
+    { "from": "PharmaceuticalProduct_LS","to":"ProdLiabCov_LS",      "rel": "coveredBy",  "impact": "HIGH",   "note": "Product liability driven by ATC code and marketing authorisation status" },
+    { "from": "LSValidationPlugin",   "to": "ClinicalTrial_LS",      "rel": "validates",  "impact": "HIGH",   "note": "MHRA CTA date and Phase I FIH rules are hard underwriting stops" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "Clinical Trial Entity",         "detail": "ClinicalTrial_LS has 13 custom fields with MHRA/EudraCT registry references. No GW Cloud standard clinical trial entity -- complete new entity design required." },
+    { "severity": "CRITICAL", "count": 3, "area": "MHRA/EudraCT Integration",      "detail": "MHRA CTA and EudraCT registry validation required at bind. No GW Cloud native MHRA integration -- new regulatory API connector required." },
+    { "severity": "HIGH",     "count": 5, "area": "Phase-Based Risk Scoring",      "detail": "Clinical trial phase-specific risk scoring and limit requirements. Custom Gosu algorithm -- GW Cloud rating rules can accommodate with significant configuration." },
+    { "severity": "HIGH",     "count": 4, "area": "ATMP / Gene Therapy",           "detail": "Advanced Therapy Medicinal Products require special underwriting conditions. Custom Gosu conditions -- specialist underwriting referral workflow required in GW Cloud." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "ClinicalTrial_LS.MHRA_CTAuth_Date",  "cloud": "External MHRA API",                "status": "GAP",     "action": "MHRA CTA registry validation API integration required" },
+    { "onPrem": "ClinicalTrial_LS.EudraCT_Number",    "cloud": "External EudraCT API",             "status": "GAP",     "action": "EudraCT/CTIS registry integration required for EU trials" },
+    { "onPrem": "ClinicalTrial_LS.Phase",             "cloud": "ClinicalTrial.TrialPhase",         "status": "MAPPED",  "action": "TypeKey migration required -- Phase I/II/III/IV classification" },
+    { "onPrem": "PharmaceuticalProduct_LS.ATC_Code",  "cloud": "Product.ATC_ClassificationCode",  "status": "PARTIAL", "action": "WHO ATC classification code field -- therapeutic area exclusion list migration required" }
+  ]
+}

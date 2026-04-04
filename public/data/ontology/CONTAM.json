@@ -1,0 +1,42 @@
+{
+  "summary": "Contamination and Environmental Liability insurance covering pollution clean-up costs, third-party bodily injury and property damage from environmental incidents. Heavily regulated under UK Environment Act 1995 and EU Environmental Liability Directive.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 79,
+  "entityCount": 31,
+  "ruleCount": 118,
+  "tableCount": 14,
+  "customExtensions": 22,
+  "apd": {
+    "product": "EnvironmentalLine_EnvLine",
+    "version": "10.1.2",
+    "jurisdiction": ["GB", "IE", "EU"],
+    "coverageGroups": [
+      { "id": "POLLCLEAN",  "name": "Pollution Clean-Up Costs",     "type": "Limit",  "mandatory": true,  "entity": "CleanUpCov_Env",       "gwCloud": "PollutionCleanUpCoverage" },
+      { "id": "POLLTPL",    "name": "Third Party Pollution Liability","type": "CSL",   "mandatory": true,  "entity": "TPLCov_Env",           "gwCloud": "ThirdPartyPollutionCoverage" },
+      { "id": "NATRES",     "name": "Natural Resource Damages",     "type": "Limit",  "mandatory": false, "entity": "NatResCov_Env",        "gwCloud": "NaturalResourceDamagesCoverage" },
+      { "id": "SITEMON",    "name": "Ongoing Site Monitoring",      "type": "Limit",  "mandatory": false, "entity": "SiteMonCov_Env",       "gwCloud": "SiteMonitoringCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "EnvRisk_Env",           "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 13, "description": "Environmental risk site entity. Custom: SiteType, ContaminantList, GroundwaterDepth, SoilPermeability, PreviousUse, PhaseIESA_Date, PhaseIIESA_Required, EnvironmentalPermitRef, WasteCarrierLicence, EARegulatedFlag, IEDPermitFlag, NatureDesignation, FloodplainProximity." },
+    { "entity": "EnvValidationPlugin",   "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "118 rules: EA regulated site acceptance, Phase II ESA requirement triggers, IED permit compliance checks, natural designation (SSSI/SAC) proximity rules, contamination severity scoring." },
+    { "entity": "ContaminantEntity_Env", "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 9,  "description": "Individual contaminant tracking. Custom: ContaminantCode, CASNumber, ConcentrationLevel, RegulatoryThreshold, MediaAffected, MigrationPathway, RemedialTechnology, CleanUpCostEstimate, LiabilityAllocation." }
+  ],
+  "relationships": [
+    { "from": "EnvRisk_Env",          "to": "ContaminantEntity_Env", "rel": "hasMultiple", "impact": "HIGH",   "note": "Multiple contaminants per site -- no GW Cloud multi-contaminant entity pattern" },
+    { "from": "EnvValidationPlugin",  "to": "EnvRisk_Env",           "rel": "validates",   "impact": "HIGH",   "note": "EA regulatory and IED permit rules reference 13 custom site fields" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 5, "area": "Contaminant Tracking Entity",  "detail": "ContaminantEntity_Env has no GW Cloud equivalent. Multi-contaminant-per-site tracking with CAS numbers and remedial technology requires new entity design." },
+    { "severity": "CRITICAL", "count": 3, "area": "EA Regulatory Integration",    "detail": "EA permit and regulated site validation requires EA API lookup. GW Cloud has no native EA integration -- new external service connector required." },
+    { "severity": "HIGH",     "count": 4, "area": "Phase I/II ESA Logic",         "detail": "Environmental Site Assessment trigger rules based on SiteType and PreviousUse. GW Cloud underwriting rules engine can accommodate but requires full rule rebuild." },
+    { "severity": "HIGH",     "count": 6, "area": "Natural Designations",         "detail": "SSSI/SAC/Ramsar proximity rules require MAGIC map data integration. No GW Cloud equivalent -- external GIS enrichment service required." },
+    { "severity": "MEDIUM",   "count": 4, "area": "Remedial Technology Codes",    "detail": "Custom TypeKeys for remedial technology types. GW Cloud extension TypeKeys required -- partial ISO standard equivalence available." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "EnvRisk_Env.EARegulatedFlag",        "cloud": "N/A",                              "status": "GAP",     "action": "Requires EA API integration in GW Cloud -- new external connector" },
+    { "onPrem": "EnvRisk_Env.PhaseIESA_Date",         "cloud": "RiskLocation.SurveyDate",          "status": "PARTIAL", "action": "Generic survey date field -- Phase I/II distinction requires custom extension" },
+    { "onPrem": "ContaminantEntity_Env",              "cloud": "N/A -- New Design Required",       "status": "GAP",     "action": "New multi-contaminant entity required in GW Cloud -- 4-5 sprint effort" },
+    { "onPrem": "EnvValidationPlugin (SSSI rules)",   "cloud": "External GIS API",                 "status": "GAP",     "action": "MAGIC map integration for natural designation proximity -- new integration" }
+  ]
+}
