@@ -1,0 +1,45 @@
+{
+  "summary": "Commercial Auto policy for business vehicles. Complex multi-vehicle, multi-driver, multi-jurisdiction. Highest validation rule count in the book.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 74,
+  "entityCount": 41,
+  "ruleCount": 183,
+  "tableCount": 28,
+  "customExtensions": 24,
+  "apd": {
+    "product": "CommercialAutoLine_CALine",
+    "version": "10.1.2",
+    "jurisdiction": ["FL", "TX", "CA", "GA", "OH"],
+    "coverageGroups": [
+      { "id": "CABI",  "name": "Commercial Auto BI Liability", "type": "CSL",        "mandatory": true,  "entity": "CABICov_CALine",       "gwCloud": "CommercialBILiabilityCoverage" },
+      { "id": "CAPD",  "name": "Commercial Auto PD Liability", "type": "Limit",      "mandatory": true,  "entity": "CAPDCov_CALine",       "gwCloud": "CommercialPDLiabilityCoverage" },
+      { "id": "CACOMP","name": "Commercial Comprehensive",     "type": "Deductible", "mandatory": false, "entity": "CACompCov_CALine",     "gwCloud": "CommercialComprehensiveCoverage" },
+      { "id": "CACOLL","name": "Commercial Collision",         "type": "Deductible", "mandatory": false, "entity": "CACollCov_CALine",     "gwCloud": "CommercialCollisionCoverage" },
+      { "id": "CAHIRE","name": "Hired Auto Liability",         "type": "CSL",        "mandatory": false, "entity": "HiredAutoCov_CALine",  "gwCloud": "HiredAutoCoverage" },
+      { "id": "CANON", "name": "Non-Owned Auto Liability",     "type": "CSL",        "mandatory": false, "entity": "NonOwnedAutoCov_CALine","gwCloud": "NonOwnedAutoCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "CommercialVehicle",    "type": "Core GW",    "migrationRisk": "MEDIUM", "customFields": 9,  "description": "Commercial vehicle. Custom: IFTA_Registration, DOT_Number, GVW_Class, HazMatEndorsement, TankEndorsement, PassengerCapacity, AnnualMileage, RadiusOfOperation, VehicleUsageCode." },
+    { "entity": "CommercialDriver",     "type": "Core GW",    "migrationRisk": "MEDIUM", "customFields": 6,  "description": "Commercial driver. Custom: CDL_Class, CDL_Endorsements, MVR_Score, HireDate, ExperienceYears, LastMVRDate." },
+    { "entity": "FleetSchedule_CALine", "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 11, "description": "Multi-vehicle fleet entity. 11 custom fields for fleet rating, blanket vs scheduled coverage, auto-add provisions." },
+    { "entity": "CALineValidation",     "type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "183 rules including: FMCSA compliance checks, DOT number validation, CDL endorsement matching, radius of operation rating class, fleet blanket eligibility." }
+  ],
+  "relationships": [
+    { "from": "FleetSchedule_CALine", "to": "CommercialVehicle", "rel": "schedules", "impact": "HIGH",   "note": "Fleet schedule entity is non-standard -- no direct GW Cloud equivalent" },
+    { "from": "CommercialVehicle",    "to": "CABICov_CALine",    "rel": "coveredBy", "impact": "MEDIUM", "note": "CSL limits driven by vehicle GVW class -- 9 custom fields involved" },
+    { "from": "CALineValidation",     "to": "CommercialDriver",  "rel": "validates", "impact": "HIGH",   "note": "183 rules include FMCSA/DOT compliance checks -- regulatory requirement" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 4, "area": "Fleet Schedule Entity","detail": "FleetSchedule_CALine has no GW Cloud equivalent. Multi-vehicle fleet rating with blanket/scheduled split and auto-add provisions requires new GW Cloud entity design." },
+    { "severity": "CRITICAL", "count": 3, "area": "FMCSA Compliance",    "detail": "183 rules include FMCSA/DOT regulatory checks. These are not in GW Cloud standard config. Need external compliance API or custom Cloud validation rules." },
+    { "severity": "HIGH",     "count": 6, "area": "CDL/MVR Integration", "detail": "Commercial driver CDL validation and MVR scoring integration. Custom Gosu integration to external MVR provider needs rebuild for GW Cloud API layer." },
+    { "severity": "HIGH",     "count": 5, "area": "GVW Class Rating",    "detail": "GVW-based commercial rating class uses 28 custom rate tables. Non-standard structure requires rating table rebuild or external rating engine." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "FleetSchedule_CALine",           "cloud": "N/A -- New Design Required", "status": "GAP",    "action": "Design new Fleet entity in GW Cloud. Significant architecture work -- 3-4 sprint effort." },
+    { "onPrem": "CommercialVehicle.DOT_Number",   "cloud": "CommercialVehicle.DOTNumber","status": "MAPPED", "action": "Direct mapping -- field rename only" },
+    { "onPrem": "CommercialDriver.CDL_Class",     "cloud": "CommercialDriver.CDLClass",  "status": "MAPPED", "action": "GW Cloud supports CDL class -- TypeKey mapping required" },
+    { "onPrem": "CALineValidation (FMCSA rules)", "cloud": "External Compliance API",    "status": "GAP",    "action": "FMCSA rules require external API integration in GW Cloud -- new integration design" }
+  ]
+}

@@ -1,0 +1,7 @@
+[
+  { "id": "HO3", "label": "HO-3 Homeowners",     "category": "Personal Lines",   "color": "#003087" },
+  { "id": "PA",  "label": "Personal Auto",        "category": "Personal Lines",   "color": "#0067B1" },
+  { "id": "CA",  "label": "Commercial Auto",      "category": "Commercial Lines", "color": "#6554C0" },
+  { "id": "CPP", "label": "Commercial Package",   "category": "Commercial Lines", "color": "#6554C0" },
+  { "id": "WC",  "label": "Workers Compensation", "category": "Commercial Lines", "color": "#00A896" }
+]

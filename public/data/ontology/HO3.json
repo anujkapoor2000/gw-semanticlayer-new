@@ -1,0 +1,53 @@
+{
+  "summary": "HO-3 Special Form Homeowners policy. Open-peril dwelling, named-peril personal property. Configured via APD product model with GW entity extensions for state-specific caps.",
+  "migrationComplexity": "HIGH",
+  "migrationScore": 68,
+  "entityCount": 34,
+  "ruleCount": 127,
+  "tableCount": 22,
+  "customExtensions": 18,
+  "apd": {
+    "product": "HomeownersLine_HOE",
+    "version": "10.1.2",
+    "jurisdiction": ["FL", "TX", "CA", "GA", "OH"],
+    "coverageGroups": [
+      { "id": "CovA", "name": "Dwelling Coverage A",          "type": "Limit",      "mandatory": true,  "entity": "DwellingCov_HOE",        "gwCloud": "DwellingCoverage" },
+      { "id": "CovB", "name": "Other Structures Coverage B",  "type": "Limit",      "mandatory": false, "entity": "OtherStructuresCov_HOE", "gwCloud": "OtherStructuresCoverage" },
+      { "id": "CovC", "name": "Personal Property Coverage C", "type": "Limit",      "mandatory": true,  "entity": "PersonalPropertyCov_HOE","gwCloud": "PersonalPropertyCoverage" },
+      { "id": "CovD", "name": "Loss of Use Coverage D",       "type": "Limit",      "mandatory": true,  "entity": "LossOfUseCov_HOE",       "gwCloud": "LossOfUseCoverage" },
+      { "id": "CovE", "name": "Personal Liability Coverage E","type": "Limit",      "mandatory": true,  "entity": "PersonalLiabCov_HOE",    "gwCloud": "PersonalLiabilityCoverage" },
+      { "id": "CovF", "name": "Medical Payments Coverage F",  "type": "Limit",      "mandatory": false, "entity": "MedPayCov_HOE",          "gwCloud": "MedicalPaymentsCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "PolicyPeriod",          "type": "Core GW",    "migrationRisk": "LOW",    "customFields": 2,  "description": "Standard GW PolicyPeriod. Custom fields: FloodZoneCode, BuildingCodeGrade." },
+    { "entity": "DwellingCov_HOE",       "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 8,  "description": "Coverage A entity. Custom fields: ReplacementCostCalcMethod, StateCapOverride, InflationGuard, OrdinanceLawLimit, ValuationMethod, ExtendedRCLimit, CoinsurancePercentage, BuilderRiskFlag." },
+    { "entity": "HOLocation_HOE",        "type": "APD Custom", "migrationRisk": "HIGH",   "customFields": 14, "description": "Property location entity. 14 custom fields including: WildFireScore, FloodZoneFEMA, CoastalWindZone, HailRiskScore, SinkholeRiskFL, RoofAgeMonths, RoofMaterial, ConstructionType, FoundationType, SquareFootage, YearBuilt, GarageType, PoolPresent, TrampolinePresent." },
+    { "entity": "PolicyValidationPlugin","type": "Gosu Rule",  "migrationRisk": "HIGH",   "customFields": 0,  "description": "127 validation rules across 5 jurisdictions. State-specific coverage caps for CA/TX/FL. Minimum coverage rules. Underwriting referral thresholds." },
+    { "entity": "HOERatingEngine",       "type": "Rating",     "migrationRisk": "HIGH",   "customFields": 0,  "description": "Custom rating algorithm for HO-3. Integrates ISO rating base with 22 state-specific rate tables. Non-standard for GW Cloud migration." },
+    { "entity": "HOEForms_HOE",          "type": "APD Custom", "migrationRisk": "MEDIUM", "customFields": 5,  "description": "Policy form selection entity. State-specific mandatory forms. ISO HO-3 form plus 18 state endorsement forms." }
+  ],
+  "relationships": [
+    { "from": "PolicyPeriod",    "to": "HOLocation_HOE",         "rel": "hasOneOrMore", "impact": "MEDIUM", "note": "Location drives most rating and underwriting rules -- migrate carefully" },
+    { "from": "HOLocation_HOE",  "to": "DwellingCov_HOE",        "rel": "hasOne",       "impact": "HIGH",   "note": "Coverage limits validated against location risk scores -- 14 cross-entity rules" },
+    { "from": "DwellingCov_HOE", "to": "PolicyValidationPlugin", "rel": "validatedBy",  "impact": "HIGH",   "note": "Plugin reads CovA limit and location zip to apply state caps" },
+    { "from": "HOERatingEngine", "to": "HOLocation_HOE",         "rel": "ratesUsing",   "impact": "HIGH",   "note": "Rating algorithm depends on 8 custom location fields not in GW Cloud schema" },
+    { "from": "HOEForms_HOE",    "to": "PolicyPeriod",           "rel": "attachedTo",   "impact": "MEDIUM", "note": "18 state endorsement forms require form selection logic migration" }
+  ],
+  "migrationIssues": [
+    { "severity": "CRITICAL", "count": 3, "area": "Custom Rating",       "detail": "HOERatingEngine uses 22 custom rate tables not supported in GW Cloud rating framework. Requires re-implementation in CloudRate or extraction to external rating engine." },
+    { "severity": "CRITICAL", "count": 2, "area": "Location Entity",     "detail": "HOLocation_HOE has 14 custom fields. GW Cloud Location entity supports 6 equivalents. 8 fields (WildFireScore, SinkholeRiskFL, CoastalWindZone etc.) require extension or external enrichment service." },
+    { "severity": "HIGH",     "count": 5, "area": "Validation Rules",    "detail": "127 Gosu validation rules in PolicyValidationPlugin. 42 rules reference custom fields not present in GW Cloud schema. Need rule-by-rule migration analysis." },
+    { "severity": "HIGH",     "count": 4, "area": "State Coverage Caps", "detail": "FL/TX/CA coverage caps implemented as hardcoded values in Gosu. GW Cloud requires parameterised configuration via Rating Tables. Refactor required." },
+    { "severity": "MEDIUM",   "count": 7, "area": "APD Forms",           "detail": "18 state endorsement forms use custom form selection logic. GW Cloud Forms Manager supports standard ISO forms but custom state logic needs re-implementation." },
+    { "severity": "LOW",      "count": 12,"area": "Typekey Extensions",  "detail": "12 custom TypeKeys added to GW typelists. Most have GW Cloud equivalents. 3 require new extension TypeKeys." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "HOLocation_HOE.WildFireScore",     "cloud": "LocationEnrichment.WildfireRisk", "status": "PARTIAL", "action": "Use GW Cloud Location Enrichment API -- mapping required" },
+    { "onPrem": "HOLocation_HOE.SinkholeRiskFL",    "cloud": "N/A",                             "status": "GAP",     "action": "FL sinkhole data not in GW Cloud -- integrate CoreLogic API" },
+    { "onPrem": "DwellingCov_HOE.StateCapOverride", "cloud": "CovTermPattern.MaxValue",         "status": "MAPPED",  "action": "Map to GW Cloud CovTerm MaxValue parameter -- full equivalence" },
+    { "onPrem": "HOERatingEngine",                  "cloud": "CloudRate or External",           "status": "GAP",     "action": "Custom ISO+state algorithm must be rebuilt or use external rating engine" },
+    { "onPrem": "PolicyValidationPlugin.gs",        "cloud": "ValidationPlugin (Cloud)",        "status": "PARTIAL", "action": "42 of 127 rules need rewrite for Cloud schema -- phased migration" },
+    { "onPrem": "HOEForms_HOE.StateFormSelection",  "cloud": "FormsManager.StateRules",         "status": "PARTIAL", "action": "ISO forms auto-migrate. 18 state endorsements need manual mapping" }
+  ]
+}
