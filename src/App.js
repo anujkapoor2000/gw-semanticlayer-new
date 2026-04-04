@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 var BLUE   = "#003087";
 var LBLUE  = "#0067B1";
@@ -15,165 +15,7 @@ var G400   = "#9AAABF";
 var G600   = "#5A6A82";
 var G800   = "#2C3A4F";
 
-// ── Ontology: Lines of Business ───────────────────────────────────────────────
-var LINES_OF_BUSINESS = [
-  { id:"HO3",  label:"HO-3 Homeowners",      category:"Personal Lines",   color:BLUE   },
-  { id:"PA",   label:"Personal Auto",         category:"Personal Lines",   color:LBLUE  },
-  { id:"CA",   label:"Commercial Auto",       category:"Commercial Lines", color:PURPLE },
-  { id:"CPP",  label:"Commercial Package",    category:"Commercial Lines", color:PURPLE },
-  { id:"WC",   label:"Workers Compensation",  category:"Commercial Lines", color:TEAL   },
-];
-
-// ── Schema Ontology Data ──────────────────────────────────────────────────────
-var ONTOLOGY = {
-  HO3: {
-    summary: "HO-3 Special Form Homeowners policy. Open-peril dwelling, named-peril personal property. Configured via APD product model with GW entity extensions for state-specific caps.",
-    migrationComplexity: "HIGH",
-    migrationScore: 68,
-    entityCount: 34,
-    ruleCount: 127,
-    tableCount: 22,
-    customExtensions: 18,
-    apd: {
-      product: "HomeownersLine_HOE",
-      version: "10.1.2",
-      jurisdiction: ["FL","TX","CA","GA","OH"],
-      coverageGroups: [
-        { id:"CovA", name:"Dwelling Coverage A",         type:"Limit",   mandatory:true,  entity:"DwellingCov_HOE",       gwCloud:"DwellingCoverage" },
-        { id:"CovB", name:"Other Structures Coverage B", type:"Limit",   mandatory:false, entity:"OtherStructuresCov_HOE",gwCloud:"OtherStructuresCoverage" },
-        { id:"CovC", name:"Personal Property Coverage C",type:"Limit",   mandatory:true,  entity:"PersonalPropertyCov_HOE",gwCloud:"PersonalPropertyCoverage" },
-        { id:"CovD", name:"Loss of Use Coverage D",      type:"Limit",   mandatory:true,  entity:"LossOfUseCov_HOE",      gwCloud:"LossOfUseCoverage" },
-        { id:"CovE", name:"Personal Liability Coverage E",type:"Limit",  mandatory:true,  entity:"PersonalLiabCov_HOE",   gwCloud:"PersonalLiabilityCoverage" },
-        { id:"CovF", name:"Medical Payments Coverage F", type:"Limit",   mandatory:false, entity:"MedPayCov_HOE",         gwCloud:"MedicalPaymentsCoverage" },
-      ],
-    },
-    schemaEntities: [
-      { entity:"PolicyPeriod",         type:"Core GW",    migrationRisk:"LOW",    customFields:2,  description:"Standard GW PolicyPeriod. Custom fields: FloodZoneCode, BuildingCodeGrade." },
-      { entity:"DwellingCov_HOE",      type:"APD Custom", migrationRisk:"MEDIUM", customFields:8,  description:"Coverage A entity. Custom fields: ReplacementCostCalcMethod, StateCapOverride, InflationGuard, OrdinanceLawLimit, ValuationMethod, ExtendedRCLimit, CoinsurancePercentage, BuilderRiskFlag." },
-      { entity:"HOLocation_HOE",       type:"APD Custom", migrationRisk:"HIGH",   customFields:14, description:"Property location entity. 14 custom fields including: WildFireScore, FloodZoneFEMA, CoastalWindZone, HailRiskScore, SinkholeRiskFL, RoofAgeMonths, RoofMaterial, ConstructionType, FoundationType, SquareFootage, YearBuilt, GarageType, PoolPresent, TrampolinePresent." },
-      { entity:"PolicyValidationPlugin",type:"Gosu Rule", migrationRisk:"HIGH",   customFields:0,  description:"127 validation rules across 5 jurisdictions. State-specific coverage caps for CA/TX/FL. Minimum coverage rules. Underwriting referral thresholds." },
-      { entity:"HOERatingEngine",      type:"Rating",     migrationRisk:"HIGH",   customFields:0,  description:"Custom rating algorithm for HO-3. Integrates ISO rating base with 22 state-specific rate tables. Non-standard for GW Cloud migration." },
-      { entity:"HOEForms_HOE",         type:"APD Custom", migrationRisk:"MEDIUM", customFields:5,  description:"Policy form selection entity. State-specific mandatory forms. ISO HO-3 form plus 18 state endorsement forms." },
-    ],
-    relationships: [
-      { from:"PolicyPeriod",    to:"HOLocation_HOE",        rel:"hasOneOrMore",  impact:"MEDIUM", note:"Location drives most rating and underwriting rules -- migrate carefully" },
-      { from:"HOLocation_HOE",  to:"DwellingCov_HOE",       rel:"hasOne",        impact:"HIGH",   note:"Coverage limits validated against location risk scores -- 14 cross-entity rules" },
-      { from:"DwellingCov_HOE", to:"PolicyValidationPlugin",rel:"validatedBy",   impact:"HIGH",   note:"Plugin reads CovA limit and location zip to apply state caps" },
-      { from:"HOERatingEngine", to:"HOLocation_HOE",        rel:"ratesUsing",    impact:"HIGH",   note:"Rating algorithm depends on 8 custom location fields not in GW Cloud schema" },
-      { from:"HOEForms_HOE",    to:"PolicyPeriod",          rel:"attachedTo",    impact:"MEDIUM", note:"18 state endorsement forms require form selection logic migration" },
-    ],
-    migrationIssues: [
-      { severity:"CRITICAL", count:3, area:"Custom Rating",       detail:"HOERatingEngine uses 22 custom rate tables not supported in GW Cloud rating framework. Requires re-implementation in CloudRate or extraction to external rating engine." },
-      { severity:"CRITICAL", count:2, area:"Location Entity",     detail:"HOLocation_HOE has 14 custom fields. GW Cloud Location entity supports 6 equivalents. 8 fields (WildFireScore, SinkholeRiskFL, CoastalWindZone etc.) require extension or external enrichment service." },
-      { severity:"HIGH",     count:5, area:"Validation Rules",    detail:"127 Gosu validation rules in PolicyValidationPlugin. 42 rules reference custom fields not present in GW Cloud schema. Need rule-by-rule migration analysis." },
-      { severity:"HIGH",     count:4, area:"State Coverage Caps", detail:"FL/TX/CA coverage caps implemented as hardcoded values in Gosu. GW Cloud requires parameterised configuration via Rating Tables. Refactor required." },
-      { severity:"MEDIUM",   count:7, area:"APD Forms",           detail:"18 state endorsement forms use custom form selection logic. GW Cloud Forms Manager supports standard ISO forms but custom state logic needs re-implementation." },
-      { severity:"LOW",      count:12,area:"Typekey Extensions",  detail:"12 custom TypeKeys added to GW typelists. Most have GW Cloud equivalents. 3 require new extension TypeKeys." },
-    ],
-    cloudMapping: [
-      { onPrem:"HOLocation_HOE.WildFireScore",     cloud:"LocationEnrichment.WildfireRisk",    status:"PARTIAL",  action:"Use GW Cloud Location Enrichment API -- mapping required" },
-      { onPrem:"HOLocation_HOE.SinkholeRiskFL",    cloud:"N/A",                                status:"GAP",      action:"FL sinkhole data not in GW Cloud -- integrate CoreLogic API" },
-      { onPrem:"DwellingCov_HOE.StateCapOverride", cloud:"CovTermPattern.MaxValue",            status:"MAPPED",   action:"Map to GW Cloud CovTerm MaxValue parameter -- full equivalence" },
-      { onPrem:"HOERatingEngine",                  cloud:"CloudRate or External",              status:"GAP",      action:"Custom ISO+state algorithm must be rebuilt or use external rating engine" },
-      { onPrem:"PolicyValidationPlugin.gs",        cloud:"ValidationPlugin (Cloud)",           status:"PARTIAL",  action:"42 of 127 rules need rewrite for Cloud schema -- phased migration" },
-      { onPrem:"HOEForms_HOE.StateFormSelection",  cloud:"FormsManager.StateRules",            status:"PARTIAL",  action:"ISO forms auto-migrate. 18 state endorsements need manual mapping" },
-    ],
-  },
-
-  PA: {
-    summary: "Personal Auto policy for private passenger vehicles. Standard ISO forms base with state-specific rating and UM/UIM configuration. Moderate migration complexity.",
-    migrationComplexity: "MEDIUM",
-    migrationScore: 52,
-    entityCount: 28,
-    ruleCount: 89,
-    tableCount: 16,
-    customExtensions: 11,
-    apd: {
-      product: "PersonalAutoLine_PALine",
-      version: "10.1.2",
-      jurisdiction: ["FL","TX","CA","GA","OH","NY"],
-      coverageGroups: [
-        { id:"BI",    name:"Bodily Injury Liability",       type:"SplitLimit", mandatory:true,  entity:"BICov_PALine",      gwCloud:"BodilyInjuryLiabilityCoverage" },
-        { id:"PD",    name:"Property Damage Liability",     type:"Limit",      mandatory:true,  entity:"PDCov_PALine",      gwCloud:"PropertyDamageLiabilityCoverage" },
-        { id:"UM",    name:"Uninsured Motorist BI",         type:"SplitLimit", mandatory:false, entity:"UMBICov_PALine",    gwCloud:"UninsuredMotoristCoverage" },
-        { id:"COMP",  name:"Comprehensive",                 type:"Deductible", mandatory:false, entity:"CompCov_PALine",    gwCloud:"ComprehensiveCoverage" },
-        { id:"COLL",  name:"Collision",                     type:"Deductible", mandatory:false, entity:"CollCov_PALine",    gwCloud:"CollisionCoverage" },
-        { id:"PIP",   name:"Personal Injury Protection",    type:"Limit",      mandatory:false, entity:"PIPCov_PALine",     gwCloud:"PersonalInjuryProtectionCoverage" },
-      ],
-    },
-    schemaEntities: [
-      { entity:"PersonalAutoLine",   type:"Core GW",    migrationRisk:"LOW",    customFields:3,  description:"Standard PA line entity. Custom: TelemticsEnrolled, UsageBasedDiscount, DriveScoreAvg." },
-      { entity:"PersonalVehicle",    type:"Core GW",    migrationRisk:"LOW",    customFields:6,  description:"Vehicle entity. Custom: AntiTheftDevice, SafetyRating, LeasedFlag, CommercialUseFlag, MileageCategory, GarageZip." },
-      { entity:"Driver",             type:"Core GW",    migrationRisk:"MEDIUM", customFields:5,  description:"Driver entity. Custom: Excluded, ExclusionReason, ExclusionDate, GoodStudentVerified, DefensiveDrivingDate." },
-      { entity:"BICov_PALine",       type:"APD Custom", migrationRisk:"LOW",    customFields:2,  description:"BI coverage. Custom: StackedFlag (FL only), UMRejectionOnFile." },
-      { entity:"PALineValidation",   type:"Gosu Rule",  migrationRisk:"MEDIUM", customFields:0,  description:"89 validation rules. Key: FL PIP mandatory check, UM stacking elections, driver exclusion validation, multi-car discount eligibility." },
-    ],
-    relationships: [
-      { from:"PersonalVehicle",   to:"BICov_PALine",        rel:"coveredBy",     impact:"LOW",    note:"Standard coverage relationship -- migrates cleanly" },
-      { from:"Driver",            to:"PersonalVehicle",     rel:"drives",        impact:"MEDIUM", note:"Driver exclusion logic has 5 custom fields requiring careful migration" },
-      { from:"PALineValidation",  to:"Driver",              rel:"validates",     impact:"MEDIUM", note:"Exclusion validation plugin reads custom Driver fields" },
-      { from:"PersonalAutoLine",  to:"Driver",              rel:"hasMultiple",   impact:"LOW",    note:"Multi-driver household logic standard in GW Cloud" },
-    ],
-    migrationIssues: [
-      { severity:"HIGH",     count:2, area:"FL PIP Logic",         detail:"FL PIP mandatory / waiver logic is complex Gosu implementation. GW Cloud PIP module exists but requires configuration for FL-specific stacking and coverage selection rules." },
-      { severity:"HIGH",     count:3, area:"Telematics Integration",detail:"Custom telematics fields and DriveScore usage-based rating integration. GW Cloud has telematics API but different data model -- mapping required." },
-      { severity:"MEDIUM",   count:5, area:"Driver Exclusion",     detail:"5 custom Driver fields for exclusion. GW Cloud Driver entity has exclusion support but custom exclusion reason codes need TypeKey migration." },
-      { severity:"LOW",      count:8, area:"Rate Tables",          detail:"16 state rating tables in mostly standard format. 8 are ISO-based and will auto-migrate. 8 are custom state algorithms." },
-    ],
-    cloudMapping: [
-      { onPrem:"PersonalAutoLine.TelemticsEnrolled",   cloud:"PALine.TelemticsEnabled",    status:"MAPPED",  action:"Direct field mapping -- rename only" },
-      { onPrem:"BICov_PALine.StackedFlag",             cloud:"UMBICov.StackingElection",   status:"PARTIAL", action:"FL stacking logic must be reconfigured in GW Cloud UM module" },
-      { onPrem:"Driver.Excluded",                      cloud:"Driver.ExcludedDriver",      status:"MAPPED",  action:"GW Cloud has native exclusion support -- migrate with TypeKey mapping" },
-      { onPrem:"DriveScoreAvg (Telematics)",           cloud:"TelemticsAPI.ScoreField",    status:"GAP",     action:"GW Cloud telematics API endpoint -- integration rebuild required" },
-    ],
-  },
-
-  CA: {
-    summary: "Commercial Auto policy for business vehicles. Complex multi-vehicle, multi-driver, multi-jurisdiction. Highest validation rule count in the book.",
-    migrationComplexity: "HIGH",
-    migrationScore: 74,
-    entityCount: 41,
-    ruleCount: 183,
-    tableCount: 28,
-    customExtensions: 24,
-    apd: {
-      product: "CommercialAutoLine_CALine",
-      version: "10.1.2",
-      jurisdiction: ["FL","TX","CA","GA","OH"],
-      coverageGroups: [
-        { id:"CABI",  name:"Commercial Auto BI Liability",  type:"CSL",        mandatory:true,  entity:"CABICov_CALine",    gwCloud:"CommercialBILiabilityCoverage" },
-        { id:"CAPD",  name:"Commercial Auto PD Liability",  type:"Limit",      mandatory:true,  entity:"CAPDCov_CALine",    gwCloud:"CommercialPDLiabilityCoverage" },
-        { id:"CACOMP",name:"Commercial Comprehensive",      type:"Deductible", mandatory:false, entity:"CACompCov_CALine",  gwCloud:"CommercialComprehensiveCoverage" },
-        { id:"CACOLL",name:"Commercial Collision",          type:"Deductible", mandatory:false, entity:"CACollCov_CALine",  gwCloud:"CommercialCollisionCoverage" },
-        { id:"CAHIRE", name:"Hired Auto Liability",         type:"CSL",        mandatory:false, entity:"HiredAutoCov_CALine",gwCloud:"HiredAutoCoverage" },
-        { id:"CANON",  name:"Non-Owned Auto Liability",     type:"CSL",        mandatory:false, entity:"NonOwnedAutoCov_CALine",gwCloud:"NonOwnedAutoCoverage" },
-      ],
-    },
-    schemaEntities: [
-      { entity:"CommercialVehicle",   type:"Core GW",    migrationRisk:"MEDIUM", customFields:9,  description:"Commercial vehicle. Custom: IFTA_Registration, DOT_Number, GVW_Class, HazMatEndorsement, TankEndorsement, PassengerCapacity, AnnualMileage, RadiusOfOperation, VehicleUsageCode." },
-      { entity:"CommercialDriver",    type:"Core GW",    migrationRisk:"MEDIUM", customFields:6,  description:"Commercial driver. Custom: CDL_Class, CDL_Endorsements, MVR_Score, HireDate, ExperienceYears, LastMVRDate." },
-      { entity:"FleetSchedule_CALine",type:"APD Custom", migrationRisk:"HIGH",   customFields:11, description:"Multi-vehicle fleet entity. 11 custom fields for fleet rating, blanket vs scheduled coverage, auto-add provisions." },
-      { entity:"CALineValidation",    type:"Gosu Rule",  migrationRisk:"HIGH",   customFields:0,  description:"183 rules including: FMCSA compliance checks, DOT number validation, CDL endorsement matching, radius of operation rating class, fleet blanket eligibility." },
-    ],
-    relationships: [
-      { from:"FleetSchedule_CALine",  to:"CommercialVehicle",    rel:"schedules",     impact:"HIGH",   note:"Fleet schedule entity is non-standard -- no direct GW Cloud equivalent" },
-      { from:"CommercialVehicle",     to:"CABICov_CALine",       rel:"coveredBy",     impact:"MEDIUM", note:"CSL limits driven by vehicle GVW class -- 9 custom fields involved" },
-      { from:"CALineValidation",      to:"CommercialDriver",     rel:"validates",     impact:"HIGH",   note:"183 rules include FMCSA/DOT compliance checks -- regulatory requirement" },
-    ],
-    migrationIssues: [
-      { severity:"CRITICAL", count:4, area:"Fleet Schedule Entity",detail:"FleetSchedule_CALine has no GW Cloud equivalent. Multi-vehicle fleet rating with blanket/scheduled split and auto-add provisions requires new GW Cloud entity design." },
-      { severity:"CRITICAL", count:3, area:"FMCSA Compliance",    detail:"183 rules include FMCSA/DOT regulatory checks. These are not in GW Cloud standard config. Need external compliance API or custom Cloud validation rules." },
-      { severity:"HIGH",     count:6, area:"CDL/MVR Integration", detail:"Commercial driver CDL validation and MVR scoring integration. Custom Gosu integration to external MVR provider needs rebuild for GW Cloud API layer." },
-      { severity:"HIGH",     count:5, area:"GVW Class Rating",    detail:"GVW-based commercial rating class uses 28 custom rate tables. Non-standard structure requires rating table rebuild or external rating engine." },
-    ],
-    cloudMapping: [
-      { onPrem:"FleetSchedule_CALine",           cloud:"N/A -- New Design Required",      status:"GAP",     action:"Design new Fleet entity in GW Cloud. Significant architecture work -- 3-4 sprint effort." },
-      { onPrem:"CommercialVehicle.DOT_Number",   cloud:"CommercialVehicle.DOTNumber",     status:"MAPPED",  action:"Direct mapping -- field rename only" },
-      { onPrem:"CommercialDriver.CDL_Class",     cloud:"CommercialDriver.CDLClass",       status:"MAPPED",  action:"GW Cloud supports CDL class -- TypeKey mapping required" },
-      { onPrem:"CALineValidation (FMCSA rules)", cloud:"External Compliance API",         status:"GAP",     action:"FMCSA rules require external API integration in GW Cloud -- new integration design" },
-    ],
-  },
-};
+// ── Lines of Business and Ontology are loaded dynamically from /data/ ────────
 
 var MIGRATION_COMPLEXITY = {
   HIGH:   { color:ORANGE, bg:"#FFF0EB" },
@@ -229,17 +71,27 @@ function ScoreGauge(props) {
 }
 
 export default function App() {
+  var [lobs,        setLobs]        = useState([]);
   var [selectedLOB, setSelectedLOB] = useState(null);
   var [ontology,    setOntology]    = useState(null);
   var [loading,     setLoading]     = useState(false);
   var [phaseIdx,    setPhaseIdx]    = useState(0);
   var [activeTab,   setActiveTab]   = useState("overview");
   var [doneMap,     setDoneMap]     = useState({});
+  var [fetchError,  setFetchError]  = useState(null);
+
+  useEffect(function() {
+    fetch(process.env.PUBLIC_URL + "/data/lobs.json")
+      .then(function(r) { return r.json(); })
+      .then(setLobs)
+      .catch(function(err) { setFetchError("Failed to load lines of business: " + err.message); });
+  }, []);
 
   function runAnalysis(lob) {
     if (loading) return;
     setSelectedLOB(lob);
     setOntology(null);
+    setFetchError(null);
     setLoading(true);
     setActiveTab("overview");
     setPhaseIdx(0);
@@ -249,12 +101,20 @@ export default function App() {
       if (p < PHASES.length - 1) setTimeout(tick, 650);
     }
     setTimeout(tick, 650);
-    setTimeout(function() {
-      var data = ONTOLOGY[lob.id];
-      setOntology(data);
-      setDoneMap(function(prev) { var n = Object.assign({}, prev); n[lob.id] = data; return n; });
-      setLoading(false);
-    }, 3500);
+    fetch(process.env.PUBLIC_URL + "/data/ontology/" + lob.id + ".json")
+      .then(function(r) {
+        if (!r.ok) throw new Error("No ontology data for " + lob.id);
+        return r.json();
+      })
+      .then(function(data) {
+        setOntology(data);
+        setDoneMap(function(prev) { var n = Object.assign({}, prev); n[lob.id] = data; return n; });
+        setLoading(false);
+      })
+      .catch(function(err) {
+        setFetchError(err.message);
+        setLoading(false);
+      });
   }
 
   var totalEntities = Object.values(doneMap).reduce(function(s,d) { return s+d.entityCount; }, 0);
@@ -280,7 +140,7 @@ export default function App() {
         </div>
         <div style={{ display:"flex", gap:20 }}>
           {[
-            { v:LINES_OF_BUSINESS.length, l:"Lines of Business", c:BLUE   },
+            { v:lobs.length||"--",         l:"Lines of Business", c:BLUE   },
             { v:totalEntities||"--",       l:"Entities Mapped",   c:PURPLE },
             { v:totalGaps||"--",           l:"Critical Gaps",     c:ORANGE },
             { v:avgScore?avgScore+"%":"--",l:"Avg Migration Risk", c:AMBER },
@@ -302,11 +162,11 @@ export default function App() {
           <div style={{ fontSize:10, fontWeight:700, color:G400, letterSpacing:2, marginBottom:10 }}>LINES OF BUSINESS</div>
 
           {["Personal Lines","Commercial Lines"].map(function(cat) {
-            var lobs = LINES_OF_BUSINESS.filter(function(l) { return l.category === cat; });
+            var catLobs = lobs.filter(function(l) { return l.category === cat; });
             return (
               <div key={cat} style={{ marginBottom:16 }}>
                 <div style={{ fontSize:9, fontWeight:700, color:G600, marginBottom:6, textTransform:"uppercase", letterSpacing:1 }}>{cat}</div>
-                {lobs.map(function(lob) {
+                {catLobs.map(function(lob) {
                   var cached = doneMap[lob.id];
                   var isAct  = selectedLOB && selectedLOB.id === lob.id;
                   var mc     = cached ? MIGRATION_COMPLEXITY[cached.migrationComplexity] : null;
@@ -358,7 +218,13 @@ export default function App() {
         {/* Main panel */}
         <div style={{ flex:1, overflowY:"auto", padding:"18px 22px" }}>
 
-          {!selectedLOB && !loading && (
+          {fetchError && (
+            <div style={{ background:"#FDECEA", border:"1px solid "+RED, borderRadius:8, padding:"12px 16px", marginBottom:14, color:RED, fontSize:12, fontWeight:600 }}>
+              {fetchError}
+            </div>
+          )}
+
+          {!selectedLOB && !loading && !fetchError && (
             <div style={{ textAlign:"center", paddingTop:70, opacity:0.4 }}>
               <div style={{ fontSize:48, marginBottom:12 }}>&#128202;</div>
               <div style={{ fontSize:15, fontWeight:700, color:G800 }}>Select a Line of Business to analyse</div>

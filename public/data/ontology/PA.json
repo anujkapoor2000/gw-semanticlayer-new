@@ -1,0 +1,47 @@
+{
+  "summary": "Personal Auto policy for private passenger vehicles. Standard ISO forms base with state-specific rating and UM/UIM configuration. Moderate migration complexity.",
+  "migrationComplexity": "MEDIUM",
+  "migrationScore": 52,
+  "entityCount": 28,
+  "ruleCount": 89,
+  "tableCount": 16,
+  "customExtensions": 11,
+  "apd": {
+    "product": "PersonalAutoLine_PALine",
+    "version": "10.1.2",
+    "jurisdiction": ["FL", "TX", "CA", "GA", "OH", "NY"],
+    "coverageGroups": [
+      { "id": "BI",   "name": "Bodily Injury Liability",    "type": "SplitLimit", "mandatory": true,  "entity": "BICov_PALine",   "gwCloud": "BodilyInjuryLiabilityCoverage" },
+      { "id": "PD",   "name": "Property Damage Liability",  "type": "Limit",      "mandatory": true,  "entity": "PDCov_PALine",   "gwCloud": "PropertyDamageLiabilityCoverage" },
+      { "id": "UM",   "name": "Uninsured Motorist BI",      "type": "SplitLimit", "mandatory": false, "entity": "UMBICov_PALine", "gwCloud": "UninsuredMotoristCoverage" },
+      { "id": "COMP", "name": "Comprehensive",              "type": "Deductible", "mandatory": false, "entity": "CompCov_PALine", "gwCloud": "ComprehensiveCoverage" },
+      { "id": "COLL", "name": "Collision",                  "type": "Deductible", "mandatory": false, "entity": "CollCov_PALine", "gwCloud": "CollisionCoverage" },
+      { "id": "PIP",  "name": "Personal Injury Protection", "type": "Limit",      "mandatory": false, "entity": "PIPCov_PALine",  "gwCloud": "PersonalInjuryProtectionCoverage" }
+    ]
+  },
+  "schemaEntities": [
+    { "entity": "PersonalAutoLine",  "type": "Core GW",    "migrationRisk": "LOW",    "customFields": 3, "description": "Standard PA line entity. Custom: TelemticsEnrolled, UsageBasedDiscount, DriveScoreAvg." },
+    { "entity": "PersonalVehicle",   "type": "Core GW",    "migrationRisk": "LOW",    "customFields": 6, "description": "Vehicle entity. Custom: AntiTheftDevice, SafetyRating, LeasedFlag, CommercialUseFlag, MileageCategory, GarageZip." },
+    { "entity": "Driver",            "type": "Core GW",    "migrationRisk": "MEDIUM", "customFields": 5, "description": "Driver entity. Custom: Excluded, ExclusionReason, ExclusionDate, GoodStudentVerified, DefensiveDrivingDate." },
+    { "entity": "BICov_PALine",      "type": "APD Custom", "migrationRisk": "LOW",    "customFields": 2, "description": "BI coverage. Custom: StackedFlag (FL only), UMRejectionOnFile." },
+    { "entity": "PALineValidation",  "type": "Gosu Rule",  "migrationRisk": "MEDIUM", "customFields": 0, "description": "89 validation rules. Key: FL PIP mandatory check, UM stacking elections, driver exclusion validation, multi-car discount eligibility." }
+  ],
+  "relationships": [
+    { "from": "PersonalVehicle",  "to": "BICov_PALine",    "rel": "coveredBy",   "impact": "LOW",    "note": "Standard coverage relationship -- migrates cleanly" },
+    { "from": "Driver",           "to": "PersonalVehicle", "rel": "drives",      "impact": "MEDIUM", "note": "Driver exclusion logic has 5 custom fields requiring careful migration" },
+    { "from": "PALineValidation", "to": "Driver",          "rel": "validates",   "impact": "MEDIUM", "note": "Exclusion validation plugin reads custom Driver fields" },
+    { "from": "PersonalAutoLine", "to": "Driver",          "rel": "hasMultiple", "impact": "LOW",    "note": "Multi-driver household logic standard in GW Cloud" }
+  ],
+  "migrationIssues": [
+    { "severity": "HIGH",   "count": 2, "area": "FL PIP Logic",          "detail": "FL PIP mandatory / waiver logic is complex Gosu implementation. GW Cloud PIP module exists but requires configuration for FL-specific stacking and coverage selection rules." },
+    { "severity": "HIGH",   "count": 3, "area": "Telematics Integration","detail": "Custom telematics fields and DriveScore usage-based rating integration. GW Cloud has telematics API but different data model -- mapping required." },
+    { "severity": "MEDIUM", "count": 5, "area": "Driver Exclusion",      "detail": "5 custom Driver fields for exclusion. GW Cloud Driver entity has exclusion support but custom exclusion reason codes need TypeKey migration." },
+    { "severity": "LOW",    "count": 8, "area": "Rate Tables",           "detail": "16 state rating tables in mostly standard format. 8 are ISO-based and will auto-migrate. 8 are custom state algorithms." }
+  ],
+  "cloudMapping": [
+    { "onPrem": "PersonalAutoLine.TelemticsEnrolled", "cloud": "PALine.TelemticsEnabled",  "status": "MAPPED",  "action": "Direct field mapping -- rename only" },
+    { "onPrem": "BICov_PALine.StackedFlag",           "cloud": "UMBICov.StackingElection", "status": "PARTIAL", "action": "FL stacking logic must be reconfigured in GW Cloud UM module" },
+    { "onPrem": "Driver.Excluded",                    "cloud": "Driver.ExcludedDriver",    "status": "MAPPED",  "action": "GW Cloud has native exclusion support -- migrate with TypeKey mapping" },
+    { "onPrem": "DriveScoreAvg (Telematics)",         "cloud": "TelemticsAPI.ScoreField",  "status": "GAP",     "action": "GW Cloud telematics API endpoint -- integration rebuild required" }
+  ]
+}
