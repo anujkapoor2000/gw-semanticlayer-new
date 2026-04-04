@@ -71,14 +71,23 @@ function ScoreGauge(props) {
 }
 
 export default function App() {
-  var [lobs,        setLobs]        = useState([]);
-  var [selectedLOB, setSelectedLOB] = useState(null);
-  var [ontology,    setOntology]    = useState(null);
-  var [loading,     setLoading]     = useState(false);
-  var [phaseIdx,    setPhaseIdx]    = useState(0);
-  var [activeTab,   setActiveTab]   = useState("overview");
-  var [doneMap,     setDoneMap]     = useState({});
-  var [fetchError,  setFetchError]  = useState(null);
+  var [lobs,           setLobs]           = useState([]);
+  var [selectedLOB,    setSelectedLOB]    = useState(null);
+  var [ontology,       setOntology]       = useState(null);
+  var [loading,        setLoading]        = useState(false);
+  var [phaseIdx,       setPhaseIdx]       = useState(0);
+  var [activeTab,      setActiveTab]      = useState("overview");
+  var [doneMap,        setDoneMap]        = useState({});
+  var [fetchError,     setFetchError]     = useState(null);
+  var [searchQuery,    setSearchQuery]    = useState("");
+  var [filterCategory, setFilterCategory] = useState("All");
+
+  function clearSelection() {
+    setSelectedLOB(null);
+    setOntology(null);
+    setFetchError(null);
+    setLoading(false);
+  }
 
   useEffect(function() {
     fetch(process.env.PUBLIC_URL + "/data/lobs.json")
@@ -157,54 +166,45 @@ export default function App() {
 
       <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
-        {/* Left sidebar -- LOB selector */}
-        <div style={{ width:270, background:WHITE, borderRight:"1px solid "+G200, overflowY:"auto", padding:"14px 10px", flexShrink:0 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:G400, letterSpacing:2, marginBottom:10 }}>LINES OF BUSINESS</div>
+        {/* Left sidebar -- category filter rail */}
+        <div style={{ width:200, background:WHITE, borderRight:"1px solid "+G200, overflowY:"auto", padding:"14px 10px", flexShrink:0, display:"flex", flexDirection:"column" }}>
 
-          {["Personal Lines","Commercial Lines"].map(function(cat) {
-            var catLobs = lobs.filter(function(l) { return l.category === cat; });
-            return (
-              <div key={cat} style={{ marginBottom:16 }}>
-                <div style={{ fontSize:9, fontWeight:700, color:G600, marginBottom:6, textTransform:"uppercase", letterSpacing:1 }}>{cat}</div>
-                {catLobs.map(function(lob) {
-                  var cached = doneMap[lob.id];
-                  var isAct  = selectedLOB && selectedLOB.id === lob.id;
-                  var mc     = cached ? MIGRATION_COMPLEXITY[cached.migrationComplexity] : null;
-                  return (
-                    <div key={lob.id} onClick={function() { runAnalysis(lob); }}
-                      style={{ background:isAct?"#EBF2FF":WHITE, border:"1.5px solid "+(isAct?BLUE:G200), borderRadius:10, padding:"11px 12px", marginBottom:6, cursor:loading?"not-allowed":"pointer", opacity:loading&&!isAct?0.5:1 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                        <span style={{ fontSize:11, fontWeight:800, color:lob.color }}>{lob.id}</span>
-                        {mc && <span style={{ fontSize:9, fontWeight:700, color:mc.color, background:mc.bg, border:"1px solid "+mc.color, borderRadius:3, padding:"0 5px" }}>{cached.migrationComplexity}</span>}
-                      </div>
-                      <div style={{ fontSize:12, fontWeight:700, color:G800, marginBottom:3 }}>{lob.label}</div>
-                      {cached && (
-                        <div style={{ marginTop:4 }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3, fontSize:9 }}>
-                            <span style={{ color:G400 }}>Migration risk</span>
-                            <span style={{ color:mc.color, fontWeight:700 }}>{cached.migrationScore}%</span>
-                          </div>
-                          <div style={{ height:4, background:G200, borderRadius:2 }}>
-                            <div style={{ height:"100%", width:cached.migrationScore+"%", background:mc.color, borderRadius:2 }}/>
-                          </div>
-                          <div style={{ display:"flex", gap:8, marginTop:4, fontSize:9, color:G400 }}>
-                            <span>{cached.entityCount} entities</span>
-                            <span>{cached.customExtensions} extensions</span>
-                            <span>{cached.ruleCount} rules</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+          {selectedLOB && (
+            <button onClick={clearSelection}
+              style={{ background:"transparent", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:5, color:BLUE, fontSize:11, fontWeight:700, padding:"4px 2px 10px 2px", marginBottom:8, borderBottom:"1px solid "+G200, textAlign:"left" }}>
+              &#8592; All LOBs
+            </button>
+          )}
+
+          <div style={{ fontSize:10, fontWeight:700, color:G400, letterSpacing:2, marginBottom:8 }}>CATEGORIES</div>
+
+          {(function() {
+            var allCats = ["All"].concat(
+              lobs.reduce(function(acc, l) {
+                if (acc.indexOf(l.category) === -1) acc.push(l.category);
+                return acc;
+              }, [])
             );
-          })}
+            return allCats.map(function(cat) {
+              var count = cat === "All" ? lobs.length : lobs.filter(function(l) { return l.category === cat; }).length;
+              var isAct = filterCategory === cat;
+              return (
+                <button key={cat}
+                  onClick={function() { setFilterCategory(cat); if (selectedLOB) clearSelection(); }}
+                  style={{ background:isAct?BLUE+"18":"transparent", border:"none", borderRadius:7, padding:"7px 8px", marginBottom:2, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", textAlign:"left" }}>
+                  <span style={{ fontSize:11, fontWeight:isAct?700:400, color:isAct?BLUE:G800 }}>{cat}</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:isAct?BLUE:G400, background:isAct?BLUE+"22":G200, borderRadius:10, padding:"1px 7px", minWidth:20, textAlign:"center" }}>{count}</span>
+                </button>
+              );
+            });
+          })()}
+
+          <div style={{ flex:1 }}/>
 
           {/* Legend */}
-          <div style={{ padding:"10px 12px", background:G100, borderRadius:9, border:"1px solid "+G200, marginTop:4 }}>
+          <div style={{ padding:"10px 10px", background:G100, borderRadius:9, border:"1px solid "+G200, marginTop:12 }}>
             <div style={{ fontSize:9, fontWeight:700, color:G400, marginBottom:7, letterSpacing:1 }}>MIGRATION COMPLEXITY</div>
-            {[["HIGH",ORANGE,"Significant rework required"],["MEDIUM",AMBER,"Moderate mapping effort"],["LOW",GREEN,"Mostly standard migration"]].map(function(r) {
+            {[["HIGH",ORANGE,"Significant rework"],["MEDIUM",AMBER,"Moderate effort"],["LOW",GREEN,"Standard migration"]].map(function(r) {
               return (
                 <div key={r[0]} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
                   <div style={{ width:8, height:8, borderRadius:"50%", background:r[1], flexShrink:0 }}/>
@@ -225,12 +225,84 @@ export default function App() {
           )}
 
           {!selectedLOB && !loading && !fetchError && (
-            <div style={{ textAlign:"center", paddingTop:70, opacity:0.4 }}>
-              <div style={{ fontSize:48, marginBottom:12 }}>&#128202;</div>
-              <div style={{ fontSize:15, fontWeight:700, color:G800 }}>Select a Line of Business to analyse</div>
-              <div style={{ fontSize:12, color:G600, marginTop:6, lineHeight:1.8, maxWidth:500, margin:"6px auto 0" }}>
-                The GW Semantic Layer reads your on-premise PolicyCenter schema DDL and APD product configuration, builds the ontology relationship map, identifies migration gaps, and generates the cloud mapping report.
+            <div>
+              {/* Browser header */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, flexWrap:"wrap", gap:8 }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:700, color:G800 }}>
+                    {filterCategory === "All" ? "All Lines of Business" : filterCategory}
+                  </div>
+                  <div style={{ fontSize:11, color:G600, marginTop:2 }}>
+                    Select a line of business to run schema analysis and generate the cloud migration report.
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search LOBs..."
+                  value={searchQuery}
+                  onChange={function(e) { setSearchQuery(e.target.value); }}
+                  style={{ padding:"8px 13px", border:"1.5px solid "+G200, borderRadius:8, fontSize:12, color:G800, background:WHITE, outline:"none", width:220 }}
+                />
               </div>
+
+              {/* LOB grid */}
+              {(function() {
+                var q = searchQuery.toLowerCase();
+                var visible = lobs.filter(function(l) {
+                  var catOk = filterCategory === "All" || l.category === filterCategory;
+                  var srchOk = !q || l.label.toLowerCase().indexOf(q) !== -1 || l.id.toLowerCase().indexOf(q) !== -1 || l.category.toLowerCase().indexOf(q) !== -1;
+                  return catOk && srchOk;
+                });
+                if (visible.length === 0) {
+                  return (
+                    <div style={{ textAlign:"center", paddingTop:48, opacity:0.5 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:G800 }}>No LOBs match your search</div>
+                      <div style={{ fontSize:11, color:G600, marginTop:4 }}>Try a different term or clear the category filter</div>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(210px, 1fr))", gap:10 }}>
+                    {visible.map(function(lob) {
+                      var cached = doneMap[lob.id];
+                      var mc = cached ? MIGRATION_COMPLEXITY[cached.migrationComplexity] : null;
+                      return (
+                        <div key={lob.id} onClick={function() { runAnalysis(lob); }}
+                          style={{ background:WHITE, border:"1.5px solid "+G200, borderRadius:12, padding:"15px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", display:"flex", flexDirection:"column" }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                            <span style={{ fontSize:11, fontWeight:800, color:lob.color, background:lob.color+"18", border:"1px solid "+lob.color+"50", borderRadius:5, padding:"2px 8px" }}>{lob.id}</span>
+                            {mc
+                              ? <span style={{ fontSize:9, fontWeight:700, color:mc.color, background:mc.bg, border:"1px solid "+mc.color, borderRadius:3, padding:"1px 6px" }}>{cached.migrationComplexity}</span>
+                              : <span style={{ fontSize:9, color:G400, border:"1px solid "+G200, borderRadius:3, padding:"1px 6px", background:G100 }}>Not analysed</span>
+                            }
+                          </div>
+                          <div style={{ fontSize:13, fontWeight:700, color:G800, marginBottom:3, lineHeight:1.3 }}>{lob.label}</div>
+                          <div style={{ fontSize:10, color:G600, marginBottom:10 }}>{lob.category}</div>
+                          <div style={{ flex:1 }}/>
+                          {cached ? (
+                            <div>
+                              <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:G400, marginBottom:3 }}>
+                                <span>Migration Risk</span>
+                                <span style={{ color:mc.color, fontWeight:700 }}>{cached.migrationScore}%</span>
+                              </div>
+                              <div style={{ height:3, background:G200, borderRadius:2, marginBottom:7 }}>
+                                <div style={{ height:"100%", width:cached.migrationScore+"%", background:mc.color, borderRadius:2 }}/>
+                              </div>
+                              <div style={{ display:"flex", gap:8, fontSize:9, color:G400 }}>
+                                <span>{cached.entityCount} ent.</span>
+                                <span>{cached.ruleCount} rules</span>
+                                <span>{cached.customExtensions} ext.</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize:10, color:BLUE, fontWeight:600 }}>Run Analysis &#8594;</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
