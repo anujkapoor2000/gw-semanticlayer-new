@@ -277,7 +277,10 @@ export default function App() {
                             }
                           </div>
                           <div style={{ fontSize:13, fontWeight:700, color:G800, marginBottom:3, lineHeight:1.3 }}>{lob.label}</div>
-                          <div style={{ fontSize:10, color:G600, marginBottom:10 }}>{lob.category}</div>
+                          <div style={{ fontSize:10, color:lob.color, fontWeight:600, marginBottom:6 }}>{lob.category}</div>
+                          {lob.description && (
+                            <div style={{ fontSize:10, color:G600, lineHeight:1.6, marginBottom:10 }}>{lob.description}</div>
+                          )}
                           <div style={{ flex:1 }}/>
                           {cached ? (
                             <div>
